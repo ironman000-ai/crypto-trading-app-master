@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 26, 26, 46;
+  --background-end-rgb: 22, 33, 62;
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 8%;
+    --foreground: 0 0% 100%;
+    --card: 210 40% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 210 40% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 210 40% 18%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 15%;
+    --muted-foreground: 0 0% 69%;
+    --accent: 210 40% 20%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 40% 20%;
+    --input: 210 40% 20%;
+    --ring: 210 40% 30%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 text-foreground min-h-screen;
+  }
+}
+
+.glassmorphism {
+  background: rgba(26, 26, 46, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glow-effect {
+  box-shadow: 0 0 20px rgba(15, 52, 96, 0.3);
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #ffffff, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.trading-card-hover {
+  transition: all 0.3s ease;
+}
+
+.trading-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(15, 52, 96, 0.4);
+}
