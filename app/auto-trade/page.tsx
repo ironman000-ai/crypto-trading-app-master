@@ -232,7 +232,7 @@ export default function AutoTradePage() {
     const updateMarketData = async () => {
       try {
         // 限制API调用频率，避免过度请求
-        if (Date.now() - lastApiCall < 15000) { // 减少API限制时间
+        if (Date.now() - lastApiCall < 30000) { // 30秒内不重复调用API
           return;
         }
         
