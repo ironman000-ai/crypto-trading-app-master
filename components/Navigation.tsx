@@ -44,7 +44,7 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 cursor-pointer">
             <Bot className="w-8 h-8 text-blue-400" />
             <span className="text-xl font-bold gradient-text">AI Quantum</span>
           </Link>
@@ -55,7 +55,7 @@ export function Navigation() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`transition-colors hover:text-blue-400 ${
+                className={`transition-colors hover:text-blue-400 cursor-pointer ${
                   pathname === item.href ? 'text-blue-400' : 'text-white'
                 }`}
               >
@@ -69,17 +69,17 @@ export function Navigation() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="glassmorphism">
+                  <Button variant="ghost" className="glassmorphism cursor-pointer">
                     <User className="w-4 h-4 mr-2" />
                     {user.email}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="glassmorphism">
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard">用户中心</Link>
+                    <Link href="/dashboard" className="cursor-pointer">用户中心</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />
                     登出
                   </DropdownMenuItem>
@@ -88,12 +88,12 @@ export function Navigation() {
             ) : (
               <>
                 <Link href="/auth/login">
-                  <Button variant="ghost" className="glassmorphism">
+                  <Button variant="ghost" className="glassmorphism cursor-pointer">
                     登录
                   </Button>
                 </Link>
                 <Link href="/auth/register">
-                  <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-blue-600 hover:bg-blue-700 cursor-pointer">
                     注册
                   </Button>
                 </Link>
@@ -105,7 +105,7 @@ export function Navigation() {
           <Button
             variant="ghost"
             size="sm"
-            className="md:hidden"
+            className="md:hidden cursor-pointer"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -120,7 +120,7 @@ export function Navigation() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`block py-2 px-4 rounded transition-colors ${
+                  className={`block py-2 px-4 rounded transition-colors cursor-pointer ${
                     pathname === item.href
                       ? 'text-blue-400 bg-blue-400/10'
                       : 'text-white hover:text-blue-400 hover:bg-white/5'
@@ -134,7 +134,7 @@ export function Navigation() {
                 <>
                   <Link
                     href="/dashboard"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
+                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5 cursor-pointer"
                     onClick={() => setIsOpen(false)}
                   >
                     用户中心
@@ -144,7 +144,7 @@ export function Navigation() {
                       logout();
                       setIsOpen(false);
                     }}
-                    className="block py-2 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5"
+                    className="block py-2 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5 cursor-pointer"
                   >
                     登出
                   </button>
@@ -153,14 +153,14 @@ export function Navigation() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
+                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5 cursor-pointer"
                     onClick={() => setIsOpen(false)}
                   >
                     登录
                   </Link>
                   <Link
                     href="/auth/register"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
+                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5 cursor-pointer"
                     onClick={() => setIsOpen(false)}
                   >
                     注册
