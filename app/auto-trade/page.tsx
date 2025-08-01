@@ -23,6 +23,19 @@ interface BotSettings {
   confidenceThreshold: number;
   maxDailyTrades: number;
   coins: string[];
+  riskManagement: {
+    maxPositionSize: number;
+    maxDrawdown: number;
+    diversificationLimit: number;
+  };
+  technicalIndicators: {
+    useRSI: boolean;
+    useMACD: boolean;
+    useMA: boolean;
+    rsiOverbought: number;
+    rsiOversold: number;
+  };
+  tradingStrategy: 'trend_following' | 'mean_reversion' | 'grid_trading' | 'momentum';
 }
 
 interface TradeLog {
@@ -61,6 +74,20 @@ interface MarketPrice {
   price: number;
   change24h: number;
   volume: number;
+  rsi?: number;
+  macd?: {
+    macd: number;
+    signal: number;
+    histogram: number;
+  };
+  movingAverages?: {
+    ma7: number;
+    ma25: number;
+    ma50: number;
+  };
+  volatility?: number;
+  trend?: 'bullish' | 'bearish' | 'sideways';
+  signalStrength?: number;
 }
 
 export default function AutoTradePage() {
@@ -75,6 +102,19 @@ export default function AutoTradePage() {
     confidenceThreshold: 70,
     maxDailyTrades: 10,
     coins: ['BTC'],
+    riskManagement: {
+      maxPositionSize: 20, // Max 20% of balance per position
+      maxDrawdown: 15, // Max 15% total drawdown
+      diversificationLimit: 5, // Max 5 different positions
+    },
+    technicalIndicators: {
+      useRSI: true,
+      useMACD: true,
+      useMA: true,
+      rsiOverbought: 70,
+      rsiOversold: 30,
+    },
+    tradingStrategy: 'trend_following',
   });
   const [apiConnected, setApiConnected] = useState(false);
   const [tradeLogs, setTradeLogs] = useState<TradeLog[]>([]);
@@ -131,29 +171,33 @@ export default function AutoTradePage() {
           }
         });
 
-        const prices: MarketPrice[] = response.data.map((coin: any) => ({
+        const prices: MarketPrice[] = response.data.map((coin: any) => {
+          // Calculate technical indicators
+          const rsi = calculateRSI(coin.current_price, coin.price_change_percentage_24h);
+          const macd = calculateMACD(coin.current_price, coin.price_change_percentage_24h);
+          const movingAverages = calculateMovingAverages(coin.current_price);
+          const volatility = Math.abs(coin.price_change_percentage_24h || 0);
+          const trend = determineTrend(coin.price_change_percentage_24h, rsi, macd);
+          const signalStrength = calculateSignalStrength(rsi, macd, coin.price_change_percentage_24h);
+
+          return {
           coin: coins.find(c => c.id === coin.id)?.value || coin.symbol.toUpperCase(),
           price: coin.current_price,
           change24h: coin.price_change_percentage_24h || 0,
           volume: coin.total_volume || 0,
-        }));
+          rsi,
+          macd,
+          movingAverages,
+          volatility,
+          trend,
+          signalStrength,
+        }});
 
         setMarketPrices(prices);
       } catch (error) {
         console.warn('Using fallback market prices');
         // Fallback prices
-        const fallbackPrices: MarketPrice[] = [
-          { coin: 'BTC', price: 45000, change24h: 2.5, volume: 25000000000 },
-          { coin: 'ETH', price: 2800, change24h: 1.8, volume: 15000000000 },
-          { coin: 'BNB', price: 320, change24h: -0.5, volume: 2000000000 },
-          { coin: 'SOL', price: 95, change24h: 3.2, volume: 1500000000 },
-          { coin: 'XRP', price: 0.52, change24h: 1.1, volume: 1200000000 },
-          { coin: 'ADA', price: 0.45, change24h: -1.2, volume: 800000000 },
-          { coin: 'AVAX', price: 28, change24h: 2.8, volume: 600000000 },
-          { coin: 'DOGE', price: 0.08, change24h: 5.0, volume: 500000000 },
-          { coin: 'DOT', price: 6.5, change24h: 1.5, volume: 400000000 },
-          { coin: 'MATIC', price: 0.85, change24h: 0.8, volume: 350000000 },
-        ];
+        const fallbackPrices: MarketPrice[] = generateEnhancedFallbackData();
         setMarketPrices(fallbackPrices);
       }
     };
@@ -187,23 +231,26 @@ export default function AutoTradePage() {
     if (!simulationBotActive || marketPrices.length === 0) return;
 
     const simulationInterval = setInterval(() => {
-      // Simulate AI prediction and trading decision
+      // Enhanced AI trading decision with technical analysis
       const selectedCoins = settings.coins.length > 0 ? settings.coins : ['BTC'];
       const randomCoin = selectedCoins[Math.floor(Math.random() * selectedCoins.length)];
       const marketPrice = marketPrices.find(p => p.coin === randomCoin);
       
       if (!marketPrice) return;
 
-      // Simulate AI confidence (70-95%)
-      const confidence = Math.floor(Math.random() * 25) + 70;
+      // Advanced trading signal analysis
+      const tradingSignal = analyzeAdvancedTradingSignal(marketPrice, settings);
+      const confidence = tradingSignal.confidence;
       
-      if (confidence >= settings.confidenceThreshold) {
-        // Decide buy or sell based on market trend and random factors
-        const shouldBuy = marketPrice.change24h > 0 && Math.random() > 0.4;
+      if (confidence >= settings.confidenceThreshold && tradingSignal.action !== 'hold') {
+        // Risk management checks
+        const riskCheck = performRiskManagementCheck(simulationAccount, settings, marketPrice);
         
-        if (shouldBuy && simulationAccount.balance >= settings.amount) {
+        if (tradingSignal.action === 'buy' && riskCheck.canBuy && simulationAccount.balance >= settings.amount) {
           // Execute buy order
-          const amount = settings.amount / marketPrice.price;
+          const adjustedAmount = Math.min(settings.amount, simulationAccount.balance * settings.riskManagement.maxPositionSize / 100);
+          const amount = adjustedAmount / marketPrice.price;
+          
           const newPosition: Position = {
             id: `pos_${Date.now()}`,
             coin: randomCoin,
@@ -228,20 +275,24 @@ export default function AutoTradePage() {
 
           setSimulationAccount(prev => ({
             ...prev,
-            balance: prev.balance - settings.amount,
+            balance: prev.balance - adjustedAmount,
             positions: [...prev.positions, newPosition],
           }));
 
           setTradeLogs(prev => [newTrade, ...prev]);
-          toast.success(`模拟买入 ${randomCoin}: $${marketPrice.price.toFixed(2)}`);
-        } else {
+          toast.success(`模拟买入 ${randomCoin}: $${marketPrice.price.toFixed(2)} (信号强度: ${tradingSignal.signalStrength})`);
+        } else if (tradingSignal.action === 'sell') {
           // Check for sell opportunities
           const position = simulationAccount.positions.find(p => p.coin === randomCoin);
           if (position) {
             const currentProfit = (marketPrice.price - position.entryPrice) / position.entryPrice * 100;
             
-            // Sell if profit target reached or stop loss triggered
-            if (currentProfit >= settings.takeProfit || currentProfit <= -settings.stopLoss) {
+            // Enhanced sell conditions with technical analysis
+            const shouldSell = currentProfit >= settings.takeProfit || 
+                             currentProfit <= -settings.stopLoss ||
+                             tradingSignal.urgency === 'high';
+            
+            if (shouldSell) {
               const sellValue = position.amount * marketPrice.price;
               const profit = sellValue - (position.amount * position.entryPrice);
 
@@ -267,12 +318,14 @@ export default function AutoTradePage() {
               }));
 
               setTradeLogs(prev => [newTrade, ...prev]);
-              toast.success(`模拟卖出 ${randomCoin}: $${marketPrice.price.toFixed(2)} (${profit > 0 ? '+' : ''}$${profit.toFixed(2)})`);
+              const reason = currentProfit >= settings.takeProfit ? '止盈' : 
+                           currentProfit <= -settings.stopLoss ? '止损' : '技术信号';
+              toast.success(`模拟卖出 ${randomCoin}: $${marketPrice.price.toFixed(2)} (${reason}: ${profit > 0 ? '+' : ''}$${profit.toFixed(2)})`);
             }
           }
         }
       }
-    }, 10000); // Execute every 10 seconds
+    }, 8000); // Execute every 8 seconds for more active trading
 
     return () => clearInterval(simulationInterval);
   }, [simulationBotActive, marketPrices, settings, simulationAccount.balance, simulationAccount.positions]);
@@ -376,6 +429,137 @@ export default function AutoTradePage() {
     toast.success('模拟账户已重置');
   };
 
+  // Technical Analysis Functions
+  const calculateRSI = (price: number, change24h: number): number => {
+    // Simplified RSI calculation based on 24h change
+    const rsi = 50 + (change24h * 2);
+    return Math.max(0, Math.min(100, rsi));
+  };
+
+  const calculateMACD = (price: number, change24h: number) => {
+    // Simplified MACD calculation
+    const macd = change24h * 0.8;
+    const signal = change24h * 0.6;
+    const histogram = macd - signal;
+    return { macd, signal, histogram };
+  };
+
+  const calculateMovingAverages = (price: number) => {
+    // Simplified moving averages with slight variations
+    return {
+      ma7: price * (1 + (Math.random() - 0.5) * 0.02),
+      ma25: price * (1 + (Math.random() - 0.5) * 0.05),
+      ma50: price * (1 + (Math.random() - 0.5) * 0.08),
+    };
+  };
+
+  const determineTrend = (change24h: number, rsi: number, macd: any): 'bullish' | 'bearish' | 'sideways' => {
+    if (change24h > 2 && rsi < 70 && macd.macd > macd.signal) return 'bullish';
+    if (change24h < -2 && rsi > 30 && macd.macd < macd.signal) return 'bearish';
+    return 'sideways';
+  };
+
+  const calculateSignalStrength = (rsi: number, macd: any, change24h: number): number => {
+    let strength = 0;
+    
+    // RSI contribution
+    if (rsi < 30 || rsi > 70) strength += 30;
+    else if (rsi < 40 || rsi > 60) strength += 15;
+    
+    // MACD contribution
+    if (Math.abs(macd.histogram) > 0.5) strength += 25;
+    
+    // Price momentum contribution
+    strength += Math.min(Math.abs(change24h) * 5, 45);
+    
+    return Math.min(100, strength);
+  };
+
+  const analyzeAdvancedTradingSignal = (marketPrice: MarketPrice, settings: BotSettings) => {
+    const { rsi = 50, macd, trend, signalStrength = 50 } = marketPrice;
+    let action: 'buy' | 'sell' | 'hold' = 'hold';
+    let confidence = 50;
+    let urgency: 'low' | 'medium' | 'high' = 'low';
+
+    // Strategy-based analysis
+    switch (settings.tradingStrategy) {
+      case 'trend_following':
+        if (trend === 'bullish' && rsi < settings.technicalIndicators.rsiOverbought) {
+          action = 'buy';
+          confidence = Math.min(95, 60 + signalStrength * 0.4);
+        } else if (trend === 'bearish' && rsi > settings.technicalIndicators.rsiOversold) {
+          action = 'sell';
+          confidence = Math.min(95, 60 + signalStrength * 0.4);
+          urgency = rsi > 80 ? 'high' : 'medium';
+        }
+        break;
+        
+      case 'mean_reversion':
+        if (rsi < settings.technicalIndicators.rsiOversold) {
+          action = 'buy';
+          confidence = Math.min(90, 70 + (30 - rsi));
+        } else if (rsi > settings.technicalIndicators.rsiOverbought) {
+          action = 'sell';
+          confidence = Math.min(90, 70 + (rsi - 70));
+          urgency = 'medium';
+        }
+        break;
+        
+      case 'momentum':
+        if (marketPrice.change24h > 3 && rsi > 50 && macd?.macd && macd.macd > macd.signal) {
+          action = 'buy';
+          confidence = Math.min(95, 65 + Math.abs(marketPrice.change24h) * 3);
+        } else if (marketPrice.change24h < -3 && rsi < 50) {
+          action = 'sell';
+          confidence = Math.min(95, 65 + Math.abs(marketPrice.change24h) * 3);
+          urgency = 'high';
+        }
+        break;
+    }
+
+    return { action, confidence: Math.round(confidence), signalStrength: Math.round(signalStrength), urgency };
+  };
+
+  const performRiskManagementCheck = (account: SimulationAccount, settings: BotSettings, marketPrice: MarketPrice) => {
+    const totalValue = account.balance + account.positions.reduce((sum, pos) => sum + (pos.amount * pos.currentPrice), 0);
+    const currentDrawdown = ((account.initialBalance - totalValue) / account.initialBalance) * 100;
+    const positionCount = account.positions.length;
+    const coinPositions = account.positions.filter(pos => pos.coin === marketPrice.coin).length;
+    
+    return {
+      canBuy: currentDrawdown < settings.riskManagement.maxDrawdown &&
+              positionCount < settings.riskManagement.diversificationLimit &&
+              coinPositions === 0, // Prevent multiple positions in same coin
+      currentDrawdown,
+      positionCount,
+      riskLevel: currentDrawdown > 10 ? 'high' : currentDrawdown > 5 ? 'medium' : 'low'
+    };
+  };
+
+  const generateEnhancedFallbackData = (): MarketPrice[] => {
+    const baseData = [
+      { coin: 'BTC', price: 45000, change24h: 2.5, volume: 25000000000 },
+      { coin: 'ETH', price: 2800, change24h: 1.8, volume: 15000000000 },
+      { coin: 'BNB', price: 320, change24h: -0.5, volume: 2000000000 },
+      { coin: 'SOL', price: 95, change24h: 3.2, volume: 1500000000 },
+      { coin: 'XRP', price: 0.52, change24h: 1.1, volume: 1200000000 },
+      { coin: 'ADA', price: 0.45, change24h: -1.2, volume: 800000000 },
+      { coin: 'AVAX', price: 28, change24h: 2.8, volume: 600000000 },
+      { coin: 'DOGE', price: 0.08, change24h: 5.0, volume: 500000000 },
+      { coin: 'DOT', price: 6.5, change24h: 1.5, volume: 400000000 },
+      { coin: 'MATIC', price: 0.85, change24h: 0.8, volume: 350000000 },
+    ];
+
+    return baseData.map(data => ({
+      ...data,
+      rsi: calculateRSI(data.price, data.change24h),
+      macd: calculateMACD(data.price, data.change24h),
+      movingAverages: calculateMovingAverages(data.price),
+      volatility: Math.abs(data.change24h),
+      trend: determineTrend(data.change24h, calculateRSI(data.price, data.change24h), calculateMACD(data.price, data.change24h)),
+      signalStrength: calculateSignalStrength(calculateRSI(data.price, data.change24h), calculateMACD(data.price, data.change24h), data.change24h),
+    }));
+  };
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 flex items-center justify-center">
@@ -545,17 +729,47 @@ export default function AutoTradePage() {
                 {/* Market Prices */}
                 <Card className="glassmorphism">
                   <CardHeader>
-                    <CardTitle>实时行情</CardTitle>
+                    <CardTitle>实时行情 & 技术指标</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       {marketPrices.slice(0, 5).map((price) => (
-                        <div key={price.coin} className="flex justify-between items-center text-sm">
-                          <span className="font-medium">{price.coin}</span>
-                          <div className="text-right">
-                            <div>${price.price.toLocaleString()}</div>
-                            <div className={`text-xs ${price.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {price.change24h >= 0 ? '+' : ''}{price.change24h.toFixed(2)}%
+                        <div key={price.coin} className="p-3 glassmorphism rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">{price.coin}</span>
+                            <div className="text-right">
+                              <div className="text-sm font-bold">${price.price.toLocaleString()}</div>
+                              <div className={`text-xs ${price.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {price.change24h >= 0 ? '+' : ''}{price.change24h.toFixed(2)}%
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Technical Indicators */}
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="text-center">
+                              <div className="text-slate-400">RSI</div>
+                              <div className={`font-medium ${
+                                (price.rsi || 50) > 70 ? 'text-red-400' : 
+                                (price.rsi || 50) < 30 ? 'text-green-400' : 'text-slate-300'
+                              }`}>
+                                {(price.rsi || 50).toFixed(0)}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-slate-400">趋势</div>
+                              <div className={`font-medium ${
+                                price.trend === 'bullish' ? 'text-green-400' : 
+                                price.trend === 'bearish' ? 'text-red-400' : 'text-yellow-400'
+                              }`}>
+                                {price.trend === 'bullish' ? '↗' : price.trend === 'bearish' ? '↘' : '→'}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-slate-400">信号</div>
+                              <div className="font-medium text-blue-400">
+                                {(price.signalStrength || 50).toFixed(0)}%
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -750,6 +964,24 @@ export default function AutoTradePage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
+                      <Label htmlFor="strategy">交易策略</Label>
+                      <Select 
+                        value={settings.tradingStrategy} 
+                        onValueChange={(value: any) => setSettings({...settings, tradingStrategy: value})}
+                      >
+                        <SelectTrigger className="glassmorphism border-white/20 mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="glassmorphism">
+                          <SelectItem value="trend_following">趋势跟随</SelectItem>
+                          <SelectItem value="mean_reversion">均值回归</SelectItem>
+                          <SelectItem value="momentum">动量交易</SelectItem>
+                          <SelectItem value="grid_trading">网格交易</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
                       <Label htmlFor="amount">单次交易金额 (USDT)</Label>
                       <Input
                         id="amount"
@@ -802,6 +1034,129 @@ export default function AutoTradePage() {
                         onChange={(e) => setSettings({...settings, maxDailyTrades: Number(e.target.value)})}
                         className="glassmorphism border-white/20 mt-1"
                       />
+                    </div>
+
+                    {/* Risk Management Settings */}
+                    <div className="pt-4 border-t border-white/10">
+                      <h4 className="font-semibold mb-3 text-yellow-400">风险管理</h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="max-position">最大单仓位 (%)</Label>
+                          <Input
+                            id="max-position"
+                            type="number"
+                            value={settings.riskManagement.maxPositionSize}
+                            onChange={(e) => setSettings({
+                              ...settings, 
+                              riskManagement: {...settings.riskManagement, maxPositionSize: Number(e.target.value)}
+                            })}
+                            className="glassmorphism border-white/20 mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="max-drawdown">最大回撤 (%)</Label>
+                          <Input
+                            id="max-drawdown"
+                            type="number"
+                            value={settings.riskManagement.maxDrawdown}
+                            onChange={(e) => setSettings({
+                              ...settings, 
+                              riskManagement: {...settings.riskManagement, maxDrawdown: Number(e.target.value)}
+                            })}
+                            className="glassmorphism border-white/20 mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="diversification">最大持仓数量</Label>
+                          <Input
+                            id="diversification"
+                            type="number"
+                            value={settings.riskManagement.diversificationLimit}
+                            onChange={(e) => setSettings({
+                              ...settings, 
+                              riskManagement: {...settings.riskManagement, diversificationLimit: Number(e.target.value)}
+                            })}
+                            className="glassmorphism border-white/20 mt-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Technical Indicators Settings */}
+                    <div className="pt-4 border-t border-white/10">
+                      <h4 className="font-semibold mb-3 text-blue-400">技术指标</h4>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="use-rsi">使用RSI指标</Label>
+                          <Switch
+                            id="use-rsi"
+                            checked={settings.technicalIndicators.useRSI}
+                            onCheckedChange={(checked) => setSettings({
+                              ...settings,
+                              technicalIndicators: {...settings.technicalIndicators, useRSI: checked}
+                            })}
+                          />
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="use-macd">使用MACD指标</Label>
+                          <Switch
+                            id="use-macd"
+                            checked={settings.technicalIndicators.useMACD}
+                            onCheckedChange={(checked) => setSettings({
+                              ...settings,
+                              technicalIndicators: {...settings.technicalIndicators, useMACD: checked}
+                            })}
+                          />
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="use-ma">使用移动平均线</Label>
+                          <Switch
+                            id="use-ma"
+                            checked={settings.technicalIndicators.useMA}
+                            onCheckedChange={(checked) => setSettings({
+                              ...settings,
+                              technicalIndicators: {...settings.technicalIndicators, useMA: checked}
+                            })}
+                          />
+                        </div>
+                        
+                        {settings.technicalIndicators.useRSI && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="rsi-overbought" className="text-xs">RSI超买</Label>
+                              <Input
+                                id="rsi-overbought"
+                                type="number"
+                                value={settings.technicalIndicators.rsiOverbought}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  technicalIndicators: {...settings.technicalIndicators, rsiOverbought: Number(e.target.value)}
+                                })}
+                                className="glassmorphism border-white/20 mt-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="rsi-oversold" className="text-xs">RSI超卖</Label>
+                              <Input
+                                id="rsi-oversold"
+                                type="number"
+                                value={settings.technicalIndicators.rsiOversold}
+                                onChange={(e) => setSettings({
+                                  ...settings,
+                                  technicalIndicators: {...settings.technicalIndicators, rsiOversold: Number(e.target.value)}
+                                })}
+                                className="glassmorphism border-white/20 mt-1 text-xs"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
