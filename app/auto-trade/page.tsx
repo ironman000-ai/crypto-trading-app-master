@@ -229,20 +229,6 @@ export default function AutoTradePage() {
 
   // 实时数据更新
   useEffect(() => {
-    // 检查页面可见性
-    const handleVisibilityChange = () => {
-      setIsPageVisible(!document.hidden);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // 从localStorage恢复机器人状态
-    const savedBotState = localStorage.getItem(botPersistenceKey);
-    if (savedBotState === 'true') {
-      setBotActive(true);
-      console.log('🤖 恢复交易机器人状态');
-    }
-
     const updateMarketData = useCallback(async () => {
       try {
         try {
@@ -295,11 +281,8 @@ export default function AutoTradePage() {
     // 每10秒更新一次市场数据
     const marketInterval = setInterval(updateMarketData, 10000);
     
-    return () => {
-      clearInterval(marketInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [botPersistenceKey]);
+    return () => clearInterval(marketInterval);
+  }, []);
 
   // 实时账户同步
   useEffect(() => {
@@ -991,14 +974,17 @@ export default function AutoTradePage() {
                           </ul>
                         </div>
                       </div>
-                    </div>
+                      <p className="text-sm text-slate-400">
+                        智能执行交易策略 {!isPageVisible && botActive && '(后台运行中)'}
+                      </p>
 
                     <Button 
                       onClick={connectAPI}
                       disabled={loading || !apiCredentials.apiKey || !apiCredentials.apiSecret}
                       className="w-full bg-blue-600 hover:bg-blue-700"
                     >
-                      {loading ? '连接中...' : '连接API'}
+                      {botActive ? "🛑 停止机器人" : "▶️ 启动机器人"}
+                      {!isPageVisible && botActive && " (后台)"}
                     </Button>
                   </>
                 ) : (
@@ -1371,4 +1357,5 @@ export default function AutoTradePage() {
       </div>
     </div>
   );
+}
 }
