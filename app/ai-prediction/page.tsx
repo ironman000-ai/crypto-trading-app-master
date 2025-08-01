@@ -244,92 +244,73 @@ export default function AIPredictionPage() {
     setLoading(true);
     
     try {
-      const coinData = coins.find(c => c.value === selectedCoin);
-      if (!coinData) return;
+      // 🚀 使用新的AI预测API
+      const symbol = selectedCoin + 'USDT';
       
-      // 使用CoinGecko API获取实时市场数据
-      const response = await fetch(`/api/crypto?endpoint=coins/markets&ids=${coinData.id}&vs_currency=usd`);
-      const data = await response.json();
+      // 获取市场数据用于AI分析
+      const marketResponse = await fetch(`/api/crypto?endpoint=coins/markets&ids=${coins.find(c => c.value === selectedCoin)?.id}&vs_currency=usd`);
+      const marketData = await marketResponse.json();
       
-      const currentPrice = data[0]?.current_price || 45000;
-      const priceChange24h = data[0]?.price_change_percentage_24h || 0;
-      const volume24h = data[0]?.total_volume || 1000000000;
+      const currentPrice = marketData[0]?.current_price || 45000;
+      const priceChange24h = marketData[0]?.price_change_percentage_24h || 0;
+      const volume24h = marketData[0]?.total_volume || 1000000000;
       
-      // Get base price for fallback calculations
-      const basePrices: { [key: string]: number } = {
-        'BTC': 45000, 'ETH': 2800, 'BNB': 320, 'SOL': 95, 'XRP': 0.52,
-        'USDC': 1.00, 'ADA': 0.45, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
-        'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
-        'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,
+      // 构建AI预测请求
+      const aiRequest = {
+        symbol: symbol,
+        timeframe: timeframe,
+        data: {
+          rsi: 50 + Math.random() * 40, // 模拟RSI
+          macd: (Math.random() - 0.5) * 0.01, // 模拟MACD
+          volume: volume24h,
+          trend: priceChange24h > 2 ? 'up' as const : priceChange24h < -2 ? 'down' as const : 'sideways' as const,
+          news_sentiment: Math.random() > 0.6 ? 'positive' as const : Math.random() > 0.3 ? 'neutral' as const : 'negative' as const,
+          price_history: [currentPrice * 0.98, currentPrice * 0.99, currentPrice, currentPrice * 1.01, currentPrice * 1.02]
+        },
+        predict_period: timeframe
       };
       
-      // Enhanced AI prediction logic
-      const marketSentiment = priceChange24h > 0 ? 1 : -1;
-      const volumeStrength = volume24h > 1000000000 ? 1.2 : 0.8;
-      const volatilityFactor = Math.abs(priceChange24h) > 5 ? 0.9 : 1.1;
+      // 调用AI预测API
+      const aiResponse = await fetch('/api/ai-predict?model=ensemble', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aiRequest)
+      });
       
-      const baseUpProb = 50 + (priceChange24h * 2) + (Math.random() * 20 - 10);
-      const upProb = Math.max(10, Math.min(90, baseUpProb * volumeStrength * volatilityFactor));
-      const downProb = 100 - upProb;
-      
-      const confidence = Math.max(60, Math.min(95, 75 + Math.abs(priceChange24h) + (Math.random() * 10)));
-      
-      // Confidence interval
-      const confidenceRange = (100 - confidence) / 2;
-      const confidenceInterval = {
-        lower: Math.max(0, upProb - confidenceRange),
-        upper: Math.min(100, upProb + confidenceRange)
-      };
-      
-      // Risk assessment
-      const volatility = Math.abs(priceChange24h);
-      const riskLevel = volatility > 10 ? 'high' : volatility > 5 ? 'medium' : 'low';
-      
-      // Trend analysis
-      const shortTermTrend = priceChange24h > 2 ? 'up' : priceChange24h < -2 ? 'down' : 'sideways';
-      const longTermTrend = marketData.length > 20 && marketData[marketData.length - 1].price > marketData[0].price ? 'up' : 
-                           marketData.length > 20 && marketData[marketData.length - 1].price < marketData[0].price ? 'down' : 'sideways';
-      
-      // Volume analysis
-      const volumeAnalysis = volume24h > 2000000000 ? '成交量活跃，市场关注度高' :
-                            volume24h > 1000000000 ? '成交量正常，市场稳定' : '成交量偏低，需谨慎观察';
-      
-      let recommendation;
-      if (upProb > 75 && confidence > 85 && riskLevel !== 'high') {
-        recommendation = '强烈买入信号 - 多项指标显示上涨概率高';
-      } else if (upProb > 65 && confidence > 75) {
-        recommendation = '买入信号 - 技术面偏向看涨';
-      } else if (upProb < 35 && confidence > 75) {
-        recommendation = '卖出信号 - 下跌风险较大';
-      } else if (riskLevel === 'high') {
-        recommendation = '高风险警告 - 建议观望等待';
-      } else {
-        recommendation = '中性观望 - 等待更明确信号';
+      if (!aiResponse.ok) {
+        throw new Error('AI预测服务暂时不可用');
       }
       
+      const aiPrediction = await aiResponse.json();
+      
+      // 转换AI预测结果为界面格式
       const enhancedPrediction: PredictionResult = {
-        up_probability: Math.round(upProb),
-        down_probability: Math.round(downProb),
-        confidence: Math.round(confidence),
+        up_probability: aiPrediction.probability_up,
+        down_probability: aiPrediction.probability_down,
+        confidence: aiPrediction.confidence,
         confidence_interval: {
-          lower: Math.round(confidenceInterval.lower),
-          upper: Math.round(confidenceInterval.upper)
+          lower: Math.max(0, aiPrediction.probability_up - 10),
+          upper: Math.min(100, aiPrediction.probability_up + 10)
         },
-        trend: upProb > 50 ? 'bullish' : 'bearish',
-        signal_strength: confidence > 85 ? 'strong' : confidence > 75 ? 'moderate' : 'weak',
-        support_level: currentPrice * 0.95,
-        resistance_level: currentPrice * 1.05,
-        recommendation,
-        short_term_trend: shortTermTrend as 'up' | 'down' | 'sideways',
-        long_term_trend: longTermTrend as 'up' | 'down' | 'sideways',
-        volatility: Math.round(volatility * 10) / 10,
-        volume_analysis: volumeAnalysis,
-        risk_level: riskLevel as 'low' | 'medium' | 'high',
+        trend: aiPrediction.prediction === 'buy' ? 'bullish' : aiPrediction.prediction === 'sell' ? 'bearish' : 'neutral',
+        signal_strength: aiPrediction.confidence > 85 ? 'strong' : aiPrediction.confidence > 70 ? 'moderate' : 'weak',
+        support_level: aiPrediction.stop_loss,
+        resistance_level: aiPrediction.target_price,
+        recommendation: aiPrediction.reasoning,
+        short_term_trend: priceChange24h > 2 ? 'up' : priceChange24h < -2 ? 'down' : 'sideways',
+        long_term_trend: aiPrediction.prediction === 'buy' ? 'up' : aiPrediction.prediction === 'sell' ? 'down' : 'sideways',
+        volatility: Math.abs(priceChange24h),
+        volume_analysis: `AI模型分析: ${aiPrediction.technical_analysis}`,
+        risk_level: aiPrediction.risk_level,
       };
       
       setPrediction(enhancedPrediction);
+      addLog(`🤖 AI预测完成: ${selectedCoin} - ${aiPrediction.prediction.toUpperCase()} (${aiPrediction.model_used})`);
+      
     } catch (error) {
-      console.warn('API调用失败，使用备用预测数据:', error);
+      console.warn('AI预测API调用失败，使用备用预测数据:', error);
       
       // Enhanced fallback prediction with coin-specific data
       const basePrices: { [key: string]: number } = {
@@ -364,6 +345,8 @@ export default function AIPredictionPage() {
         volume_analysis: '成交量数据分析中',
         risk_level: 'medium',
       });
+      
+      addLog(`⚠️ AI预测失败，使用备用算法: ${selectedCoin}`);
     } finally {
       setLoading(false);
     }
@@ -839,7 +822,7 @@ export default function AIPredictionPage() {
                       <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
                         <h4 className="font-semibold text-blue-400 mb-2 flex items-center">
                           <Target className="w-4 h-4 mr-2" />
-                          交易建议
+                          🤖 AI交易建议
                         </h4>
                         <p className="text-slate-300">{prediction.recommendation}</p>
                       </div>
@@ -847,7 +830,7 @@ export default function AIPredictionPage() {
                       <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                         <h4 className="font-semibold text-green-400 mb-2 flex items-center">
                           <BarChart3 className="w-4 h-4 mr-2" />
-                          成交量分析
+                          📊 AI技术分析
                         </h4>
                         <p className="text-slate-300">{prediction.volume_analysis}</p>
                       </div>
@@ -855,13 +838,13 @@ export default function AIPredictionPage() {
                       <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                         <h4 className="font-semibold text-yellow-400 mb-2 flex items-center">
                           <AlertCircle className="w-4 h-4 mr-2" />
-                          风险提示
+                          ⚠️ AI风险评估
                         </h4>
                         <p className="text-slate-300">
-                          当前市场波动率为 {prediction.volatility}%，属于
+                          AI模型评估当前风险等级为
                           {prediction.risk_level === 'low' ? '低风险' : 
                            prediction.risk_level === 'medium' ? '中等风险' : '高风险'}
-                          水平。请根据个人风险承受能力进行投资决策。
+                          ，波动率 {prediction.volatility.toFixed(1)}%。请根据个人风险承受能力进行投资决策。
                         </p>
                       </div>
                     </div>
