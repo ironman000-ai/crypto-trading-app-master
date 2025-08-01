@@ -144,6 +144,15 @@ export default function AutoTradePage() {
     lastUpdate: new Date().toISOString(),
   });
 
+  // Mock market prices - moved before any functions that use it
+  const [marketPrices, setMarketPrices] = useState([
+    { coin: 'BTC', price: 45000, change: 2.5 },
+    { coin: 'ETH', price: 2800, change: -1.2 },
+    { coin: 'SOL', price: 95, change: 5.8 },
+    { coin: 'ADA', price: 0.45, change: -0.8 },
+    { coin: 'DOT', price: 6.5, change: 3.2 },
+  ]);
+
   // 实时市场数据更新
   useEffect(() => {
     const updateMarketData = () => {
@@ -344,15 +353,6 @@ export default function AutoTradePage() {
     // Normal trading hours (e.g., 08:00 to 20:00)
     return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
   };
-
-  // Mock market prices
-  const [marketPrices] = useState([
-    { coin: 'BTC', price: 45000, change: 2.5 },
-    { coin: 'ETH', price: 2800, change: -1.2 },
-    { coin: 'SOL', price: 95, change: 5.8 },
-    { coin: 'ADA', price: 0.45, change: -0.8 },
-    { coin: 'DOT', price: 6.5, change: 3.2 },
-  ]);
 
   useEffect(() => {
     if (botRunning) {
