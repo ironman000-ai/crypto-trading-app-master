@@ -63,6 +63,14 @@
   background-clip: text;
 }
 
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
 .trading-card-hover {
   transition: all 0.3s ease;
 }

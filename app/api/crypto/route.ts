@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        return handleFallbackData(endpoint, { ids, vs_currency, days });
       }
 
       const data = await response.json();
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        return handleFallbackData(endpoint, { coinId, vs_currency, days });
       }
 
       const data = await response.json();
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        return handleFallbackData(endpoint, { ids, vs_currency });
       }
 
       const data = await response.json();
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        return handleFallbackData(endpoint, {});
       }
 
       const data = await response.json();
