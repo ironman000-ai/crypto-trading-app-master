@@ -28,7 +28,7 @@ function setCache(key: string, data: any): void {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const endpoint = searchParams.get('endpoint');
-  const ids = searchParams.get('ids');
+  const ids = searchParams.get('ids') || '';
   const vs_currency = searchParams.get('vs_currency') || 'usd';
   const days = searchParams.get('days') || '1';
   const interval = searchParams.get('interval') || 'hourly';
