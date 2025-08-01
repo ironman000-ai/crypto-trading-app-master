@@ -144,6 +144,183 @@ export default function AutoTradePage() {
     lastUpdate: new Date().toISOString(),
   });
 
+  // 实时市场数据更新
+  useEffect(() => {
+    const updateMarketData = () => {
+      setMarketPrices(prev => prev.map(market => ({
+        ...market,
+        price: market.price * (1 + (Math.random() - 0.5) * 0.02), // ±1% 随机波动
+        change: (Math.random() - 0.5) * 10, // ±5% 变化范围
+      })));
+      
+      // 更新市场状况
+      setMarketConditions(prev => ({
+        ...prev,
+        volatility: Math.random() > 0.7 ? 'high' : Math.random() > 0.3 ? 'medium' : 'low',
+        trend: Math.random() > 0.6 ? 'bullish' : Math.random() > 0.3 ? 'neutral' : 'bearish',
+        volume: Math.random() > 0.5 ? 'high' : 'normal',
+        lastUpdate: new Date().toISOString(),
+      }));
+    };
+
+    // 每30秒更新一次市场数据
+    const marketInterval = setInterval(updateMarketData, 30000);
+    
+    return () => clearInterval(marketInterval);
+  }, []);
+
+  // 虚拟交易模拟
+  const simulateVirtualTrade = () => {
+    if (!botRunning || !isWithinTradingHours()) return;
+
+    const shouldTrade = Math.random() > 0.85; // 15% 交易概率
+    
+    if (shouldTrade) {
+      const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
+      const marketPrice = marketPrices.find(p => p.coin === coin);
+      
+      if (marketPrice) {
+        // 基于技术指标的交易决策
+        const rsi = 30 + Math.random() * 40; // 模拟RSI 30-70
+        const maSignal = Math.random() > 0.5; // MA交叉信号
+        const volatility = Math.abs(marketPrice.change);
+        
+        // 交易条件判断
+        const shouldBuy = rsi < 35 && maSignal && volatility < 8;
+        const shouldSell = rsi > 65 && !maSignal;
+        
+        if (shouldBuy || shouldSell) {
+          const isProfit = Math.random() > 0.25; // 75% 盈利概率
+          const profitPercent = isProfit ? 
+            Math.random() * settings.takeProfit : 
+            -Math.random() * settings.stopLoss;
+          
+          const amount = (settings.maxInvestment * 0.01) / marketPrice.price; // 1% 仓位
+          const profit = (marketPrice.price * amount * profitPercent) / 100;
+          
+          const newTrade: Position = {
+            id: `trade_${Date.now()}`,
+            coin,
+            amount,
+            entryPrice: marketPrice.price,
+            currentPrice: marketPrice.price * (1 + profitPercent / 100),
+            profit,
+            profitPercent,
+            timestamp: new Date().toISOString(),
+            status: 'closed',
+          };
+          
+          // 更新交易记录
+          setRecentTrades(prev => [newTrade, ...prev.slice(0, 19)]);
+          
+          // 更新账户信息
+          setAccount(prev => ({
+            ...prev,
+            balance: prev.balance + profit,
+            totalProfit: prev.totalProfit + profit,
+            dailyPnL: prev.dailyPnL + profit,
+          }));
+          
+          // 更新统计数据
+          setBotStats(prev => ({
+            ...prev,
+            totalTrades: prev.totalTrades + 1,
+            successfulTrades: prev.successfulTrades + (isProfit ? 1 : 0),
+            winRate: ((prev.successfulTrades + (isProfit ? 1 : 0)) / (prev.totalTrades + 1)) * 100,
+            avgProfit: (prev.avgProfit * prev.totalTrades + profit) / (prev.totalTrades + 1),
+          }));
+          
+          // 添加交易日志
+          const logMessage = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} CST - ${coin} ${shouldBuy ? '买入' : '卖出'} ${isProfit ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)} (${profitPercent.toFixed(2)}%) - RSI:${rsi.toFixed(1)} MA:${maSignal ? '金叉' : '死叉'}`;
+          setTradingLogs(prev => [logMessage, ...prev.slice(0, 49)]);
+          
+          // 显示通知
+          if (isProfit) {
+            toast.success(`${coin} 交易获利 $${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)`);
+          } else {
+            toast.error(`${coin} 交易亏损 $${Math.abs(profit).toFixed(2)} (${Math.abs(profitPercent).toFixed(2)}%)`);
+          }
+        }
+      }
+    }
+  };
+
+  // 自动交易循环
+  useEffect(() => {
+    if (botRunning && apiConnected) {
+      const tradingInterval = setInterval(() => {
+        simulateVirtualTrade();
+      }, 45000); // 每45秒检查一次交易机会
+
+      return () => clearInterval(tradingInterval);
+    }
+  }, [botRunning, apiConnected, settings, marketPrices]);
+
+  // 生成虚拟持仓
+  const generateVirtualPositions = () => {
+    if (!botRunning) return;
+    
+    const positions: Position[] = [];
+    const activeCoins = settings.coins.slice(0, 2); // 限制同时持仓数量
+    
+    activeCoins.forEach((coin, index) => {
+      if (Math.random() > 0.6) { // 60% 概率持仓
+        const marketPrice = marketPrices.find(p => p.coin === coin)?.price || 100;
+        const entryPrice = marketPrice * (0.98 + Math.random() * 0.04); // ±2% 入场价
+        const amount = (settings.maxInvestment * 0.02) / entryPrice; // 2% 仓位
+        const currentProfit = (marketPrice - entryPrice) * amount;
+        const profitPercent = (currentProfit / (entryPrice * amount)) * 100;
+        
+        positions.push({
+          id: `pos_${coin}_${index}`,
+          coin,
+          amount,
+          entryPrice,
+          currentPrice: marketPrice,
+          profit: currentProfit,
+          profitPercent,
+          timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+          status: 'open',
+        });
+      }
+    });
+    
+    setAccount(prev => ({ ...prev, positions }));
+  };
+
+  // 定期更新持仓
+  useEffect(() => {
+    if (botRunning && apiConnected) {
+      generateVirtualPositions();
+      const positionInterval = setInterval(() => {
+        // 更新现有持仓的当前价格和盈亏
+        setAccount(prev => ({
+          ...prev,
+          positions: prev.positions.map(pos => {
+            const currentMarketPrice = marketPrices.find(p => p.coin === pos.coin)?.price || pos.currentPrice;
+            const newProfit = (currentMarketPrice - pos.entryPrice) * pos.amount;
+            const newProfitPercent = (newProfit / (pos.entryPrice * pos.amount)) * 100;
+            
+            return {
+              ...pos,
+              currentPrice: currentMarketPrice,
+              profit: newProfit,
+              profitPercent: newProfitPercent,
+            };
+          }),
+        }));
+      }, 10000); // 每10秒更新持仓
+      
+      return () => clearInterval(positionInterval);
+    }
+  }, [botRunning, apiConnected, marketPrices]);
+
+  const logTradingActivity = (message: string) => {
+    const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    const logEntry = `${timestamp} CST - ${message}`;
+    setTradingLogs(prev => [logEntry, ...prev.slice(0, 49)]);
+  };
+
   // Check if current time is within trading hours
   const isWithinTradingHours = () => {
     if (!settings.tradingHours.enabled) return true;
