@@ -159,6 +159,7 @@ export default function AutoTradePage() {
   const [botRunning, setBotRunning] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [botInterval, setBotInterval] = useState<NodeJS.Timeout | null>(null);
   // 账户数据
   const [realTimeAccount, setRealTimeAccount] = useState<RealTimeAccount>({
     totalBalance: 0,
@@ -189,7 +190,6 @@ export default function AutoTradePage() {
   const [recentTrades, setRecentTrades] = useState([]);
   const [tradingLogs, setTradingLogs] = useState<string[]>([]);
   const [lastApiCall, setLastApiCall] = useState(0);
-  const [dataUpdateCount, setDataUpdateCount] = useState(0);
   const [lastLogMessage, setLastLogMessage] = useState('');
 
   // 统计数据
@@ -618,6 +618,45 @@ export default function AutoTradePage() {
     return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
   };
 
+  // 分析市场策略函数
+  const analyzeMarketByStrategy = (strategy: string, marketPrice: any) => {
+    // 根据选择的策略进行分析
+    const rsi = 30 + Math.random() * 40;
+    const maSignal = Math.random() > 0.5;
+    const volatility = Math.abs(marketPrice.change);
+    
+    let shouldBuy = false;
+    let shouldSell = false;
+    
+    switch (strategy) {
+      case 'swing':
+        shouldBuy = rsi < 35 && marketPrice.change > 0;
+        shouldSell = rsi > 65 && marketPrice.change < 0;
+        break;
+      case 'scalping':
+        shouldBuy = volatility > 1 && Math.random() > 0.7;
+        shouldSell = volatility > 1 && Math.random() > 0.7;
+        break;
+      case 'trend_following':
+        shouldBuy = maSignal && marketPrice.change > 1;
+        shouldSell = !maSignal && marketPrice.change < -1;
+        break;
+      case 'intraday':
+        shouldBuy = rsi < 40 && volatility > 0.5;
+        shouldSell = rsi > 60 && volatility > 0.5;
+        break;
+      case 'breakout':
+        shouldBuy = volatility > 2 && marketPrice.change > 2;
+        shouldSell = volatility > 2 && marketPrice.change < -2;
+        break;
+      default:
+        shouldBuy = Math.random() > 0.8;
+        shouldSell = Math.random() > 0.8;
+    }
+    
+    return { shouldBuy, shouldSell };
+  };
+
   // 智能交易执行
   useEffect(() => {
     if (botRunning && isWithinTradingHours()) {
@@ -631,11 +670,6 @@ export default function AutoTradePage() {
             const marketPrice = marketPrices.find(p => p.coin === coin);
             
             if (marketPrice) {
-              // 技术指标分析
-              const rsi = 30 + Math.random() * 40;
-              const maSignal = Math.random() > 0.5;
-              const volatility = Math.abs(marketPrice.change);
-              
               // 根据选择的策略进行分析
               const { shouldBuy, shouldSell } = analyzeMarketByStrategy(settings.selectedStrategy, marketPrice);
               
@@ -680,56 +714,10 @@ export default function AutoTradePage() {
         }
       }, 45000);
 
+      setBotInterval(tradingInterval);
       return () => clearInterval(tradingInterval);
     }
   }, [botRunning, tradingMode, apiConnected, settings, marketPrices]);
-
-  // 根据策略分析市场
-  const analyzeMarketByStrategy = (strategy: string, marketPrice: any) => {
-    const volatility = Math.abs(marketPrice.change);
-    const rsi = 30 + Math.random() * 40;
-    const maSignal = Math.random() > 0.5;
-    
-    switch (strategy) {
-      case 'swing':
-        // 波段交易：关注中期趋势和RSI
-        return {
-          shouldBuy: rsi < 35 && volatility > 2 && volatility < 8,
-          shouldSell: rsi > 65 && volatility > 2
-        };
-        
-      case 'scalping':
-        // 剥头皮：关注短期波动和价差
-        return {
-          shouldBuy: volatility > 0.5 && volatility < 3 && Math.random() > 0.7,
-          shouldSell: volatility > 0.5 && volatility < 3 && Math.random() > 0.7
-        };
-        
-      case 'trend_following':
-        // 趋势跟踪：关注长期趋势
-        return {
-          shouldBuy: marketPrice.change > 3 && maSignal,
-          shouldSell: marketPrice.change < -3 && !maSignal
-        };
-        
-      case 'intraday':
-        // 日内交易：关注当日波动
-        return {
-          shouldBuy: rsi < 40 && volatility > 1 && volatility < 6,
-          shouldSell: rsi > 60 && volatility > 1
-        };
-        
-      case 'breakout':
-        // 突破策略：关注价格突破
-        return {
-          shouldBuy: volatility > 5 && marketPrice.change > 4,
-          shouldSell: volatility > 5 && marketPrice.change < -4
-        };
-        
-      default:
-        return { shouldBuy: false, shouldSell: false };
-    }
-  };
 
   if (!user) {
     return (
@@ -1090,45 +1078,6 @@ export default function AutoTradePage() {
                   </Select>
                 </div>
 
-                {/* 策略参数配置 */}
-                <div className="p-3 glassmorphism rounded-lg">
-                  <h4 className="text-sm font-medium mb-2">策略参数</h4>
-                  {settings.selectedStrategy === 'swing' && (
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>• 时间周期: 4小时</div>
-                      <div>• RSI阈值: 30-70</div>
-                      <div>• 波动率: 2-8%</div>
-                    </div>
-                  )}
-                  {settings.selectedStrategy === 'scalping' && (
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>• 时间周期: 1分钟</div>
-                      <div>• 价差阈值: 0.1%</div>
-                      <div>• 快进快出</div>
-                    </div>
-                  )}
-                  {settings.selectedStrategy === 'trend_following' && (
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>• 时间周期: 日线</div>
-                      <div>• 移动平均: 50日</div>
-                      <div>• 趋势确认: >3%</div>
-                    </div>
-                  )}
-                  {settings.selectedStrategy === 'intraday' && (
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>• 时间周期: 15分钟</div>
-                      <div>• 当日平仓</div>
-                      <div>• 波动率: 1-6%</div>
-                    </div>
-                  )}
-                  {settings.selectedStrategy === 'breakout' && (
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>• 时间周期: 1小时</div>
-                      <div>• 突破阈值: 3%</div>
-                      <div>• 高波动: >5%</div>
-                    </div>
-                  )}
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="stopLoss">止损 (%)</Label>
