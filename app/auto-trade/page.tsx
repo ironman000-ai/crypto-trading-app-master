@@ -563,8 +563,9 @@ export default function AutoTradePage() {
     const positionCount = account.positions.length;
     const coinPositions = account.positions.filter(pos => pos.coin === marketPrice.coin).length;
     
-    return {
     const confidenceMultiplier = confidence;
+
+    return {
               positionCount < settings.riskManagement.diversificationLimit &&
               coinPositions === 0, // Prevent multiple positions in same coin
       positionCount,
