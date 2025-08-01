@@ -1068,7 +1068,7 @@ export default function AutoTradePage() {
                       </div>
                       <div className="text-lg font-bold">
                         ${market.price.toLocaleString(undefined, { 
-                          minimumFractionDigits: market.price >= 1 ? 2 : 4,
+                          minimumFractionDigits: market.price >= 1000 ? 0 : market.price >= 1 ? 2 : 4,
                           maximumFractionDigits: market.price >= 1000 ? 0 : 4
                         })}
                       </div>
