@@ -60,8 +60,8 @@ export function MarketOverview() {
     };
 
     fetchCoinData();
-    // 每60秒更新一次数据 - CoinGecko免费API限制
-    const interval = setInterval(fetchCoinData, 60000);
+    // 每5分钟更新一次数据 - 避免CoinGecko API速率限制
+    const interval = setInterval(fetchCoinData, 300000);
 
     return () => clearInterval(interval);
   }, []);
