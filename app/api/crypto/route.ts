@@ -249,5 +249,23 @@ function handleFallbackData(endpoint: string | null, params: any) {
     return NextResponse.json({ prices, total_volumes: volumes });
   }
 
+  if (endpoint === 'global') {
+    const fallbackGlobalData = {
+      data: {
+        total_market_cap: {
+          usd: 1650000000000
+        },
+        total_volume: {
+          usd: 85000000000
+        },
+        market_cap_percentage: {
+          btc: 52.3
+        },
+        active_cryptocurrencies: 13847
+      }
+    };
+    return NextResponse.json(fallbackGlobalData);
+  }
+
   return NextResponse.json({ error: 'API temporarily unavailable' }, { status: 503 });
 }
