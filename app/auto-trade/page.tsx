@@ -423,19 +423,19 @@ export default function AutoTradePage() {
     setSimulationBotActive(false);
     toast.success('模拟交易机器人已停止');
   };
-
-  const handleConnectAPI = () => {
-    setTimeout(() => {
+      // Real API connection simulation with proper data fetching
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Fetch account info immediately after connection
+      const accountData = await fetchAccountInfo();
+      
       setApiConnected(true);
-      toast.success('Exchange API connected successfully');
-    }, 1000);
-  };
-
-  const resetSimulationAccount = () => {
-    setSimulationAccount({
-      balance: 10000,
-      initialBalance: 10000,
-      totalProfit: 0,
+      setLiveAccount(accountData);
+      
+      // Start real-time sync after successful connection
+      startRealTimeSync();
+      
+      toast.success(`API连接成功！余额: $${accountData.totalBalance.toLocaleString()}`);
       totalLoss: 0,
       positions: [],
     });
