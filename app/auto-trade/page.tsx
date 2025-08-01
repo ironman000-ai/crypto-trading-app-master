@@ -275,38 +275,6 @@ export default function AutoTradePage() {
     }
   }, [apiConnected, tradingMode, selectedExchange]);
 
-  // 生成模拟账户数据
-  const generateMockAccountData = (): RealTimeAccount => {
-    return {
-      totalBalance: 10000 + Math.random() * 5000,
-      availableBalance: 8000 + Math.random() * 2000,
-      positions: generateMockPositions(),
-      orders: generateMockOrders(),
-      lastUpdate: new Date().toISOString()
-    };
-  };
-
-  // 同步各交易所账户数据的函数
-  const syncHuobiAccount = async (): Promise<RealTimeAccount> => {
-    // 火币API同步逻辑
-    return generateMockAccountData();
-  };
-
-  const syncBinanceAccount = async (): Promise<RealTimeAccount> => {
-    // Binance API同步逻辑
-    return generateMockAccountData();
-  };
-
-  const syncOKXAccount = async (): Promise<RealTimeAccount> => {
-    // OKX API同步逻辑
-    return generateMockAccountData();
-  };
-
-  const syncCoinbaseAccount = async (): Promise<RealTimeAccount> => {
-    // Coinbase API同步逻辑
-    return generateMockAccountData();
-  };
-
   // 生成模拟持仓
   const generateMockPositions = (): RealTimePosition[] => {
     const positions: RealTimePosition[] = [];
@@ -361,6 +329,38 @@ export default function AutoTradePage() {
     return orders;
   };
 
+  // 生成模拟账户数据
+  const generateMockAccountData = (): RealTimeAccount => {
+    return {
+      totalBalance: 15000 + Math.random() * 5000,
+      availableBalance: 12000 + Math.random() * 3000,
+      positions: generateMockPositions(),
+      orders: generateMockOrders(),
+      lastUpdate: new Date().toISOString()
+    };
+  };
+
+  // 同步各交易所账户数据的函数
+  const syncHuobiAccount = async (): Promise<RealTimeAccount> => {
+    // 火币API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncBinanceAccount = async (): Promise<RealTimeAccount> => {
+    // Binance API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncOKXAccount = async (): Promise<RealTimeAccount> => {
+    // OKX API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncCoinbaseAccount = async (): Promise<RealTimeAccount> => {
+    // Coinbase API同步逻辑
+    return generateMockAccountData();
+  };
+
   // API连接
   const connectAPI = async () => {
     if (!apiCredentials.apiKey || !apiCredentials.apiSecret) {
@@ -390,16 +390,20 @@ export default function AutoTradePage() {
       
       setApiConnected(true);
       setApiStatus('connected');
-      const exchangeName = exchanges.find(e => e.id === selectedExchange)?.name;
-      const exchangeIcon = exchanges.find(e => e.id === selectedExchange)?.icon;
-      toast.success(`${exchangeIcon} 成功连接到 ${exchangeName}`);
+      toast.success(`成功连接到 ${exchanges.find(e => e.id === selectedExchange)?.name}`);
       
-      logTradingActivity(`${exchangeIcon} API连接成功 - ${exchangeName} ${apiCredentials.testnet ? '(测试网)' : '(主网)'}`);
+      logTradingActivity(`API连接成功 - ${selectedExchange.toUpperCase()} ${apiCredentials.testnet ? '(测试网)' : '(主网)'}`);
       
       // 初始账户同步
       if (tradingMode === 'live') {
-        logTradingActivity(`${exchangeIcon} 开始初始账户同步...`);
-        // 初始同步将由useEffect处理
+        const initialAccount = {
+          totalBalance: 15000,
+          availableBalance: 12000,
+          positions: generateMockPositions(),
+          orders: generateMockOrders(),
+          lastUpdate: new Date().toISOString()
+        };
+        setRealTimeAccount(initialAccount);
       }
       
     } catch (error) {
@@ -413,11 +417,14 @@ export default function AutoTradePage() {
 
   // 断开API连接
   const disconnectAPI = () => {
+    const exchangeIcon = exchanges.find(e => e.id === selectedExchange)?.icon;
+    const exchangeName = exchanges.find(e => e.id === selectedExchange)?.name;
+    
     setApiConnected(false);
     setApiStatus('disconnected');
     setBotRunning(false);
-    toast.success('API连接已断开');
-    logTradingActivity('API连接已断开');
+    toast.success(`${exchangeIcon} ${exchangeName} API连接已断开`);
+    logTradingActivity(`${exchangeIcon} ${exchangeName} API连接已断开`);
   };
 
   // 启动机器人
