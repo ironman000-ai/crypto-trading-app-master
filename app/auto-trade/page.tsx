@@ -417,14 +417,11 @@ export default function AutoTradePage() {
 
   // 断开API连接
   const disconnectAPI = () => {
-    const exchangeIcon = exchanges.find(e => e.id === selectedExchange)?.icon;
-    const exchangeName = exchanges.find(e => e.id === selectedExchange)?.name;
-    
     setApiConnected(false);
     setApiStatus('disconnected');
     setBotRunning(false);
-    toast.success(`${exchangeIcon} ${exchangeName} API连接已断开`);
-    logTradingActivity(`${exchangeIcon} ${exchangeName} API连接已断开`);
+    toast.success('API连接已断开');
+    logTradingActivity('API连接已断开');
   };
 
   // 启动机器人
