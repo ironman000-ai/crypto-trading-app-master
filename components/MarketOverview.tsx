@@ -22,7 +22,7 @@ export function MarketOverview() {
 
   useEffect(() => {
     // 从 AllTick API 获取真实市场数据
-    const fetchCoinData = async () => {
+    const interval = setInterval(fetchMarketData, 300000); // 5 minutes
       try {
         setLoading(true);
         
