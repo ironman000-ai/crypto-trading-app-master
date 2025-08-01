@@ -247,8 +247,7 @@ export default function AIPredictionPage() {
           path: 'coins/markets',
           vs_currency: 'usd',
           ids: coinData.id,
-          include_24hr_change: true,
-          precision: 'full'
+          include_24hr_change: true
         }
       });
       

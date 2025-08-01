@@ -28,7 +28,7 @@ export function MarketOverview() {
         
         // 获取前6个热门加密货币的数据 - 使用Pro API
         const response = await axios.get(
-          `/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false&price_change_percentage=24h&precision=full`
+          `/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false&price_change_percentage=24h`
         );
         
         // 转换 API 数据到我们的 CoinData 格式
