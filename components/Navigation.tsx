@@ -38,30 +38,44 @@ export function Navigation() {
     { name: '方案价格', href: '/pricing' },
   ];
 
+  const handleNavClick = (href: string) => {
+    setIsOpen(false);
+    // 强制页面跳转
+    window.location.href = href;
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsOpen(false);
+  };
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled ? 'glassmorphism' : 'bg-transparent'
+      scrolled ? 'glassmorphism backdrop-blur-md' : 'bg-transparent'
     }`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 cursor-pointer">
+          <div 
+            onClick={() => handleNavClick('/')}
+            className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <Bot className="w-8 h-8 text-blue-400" />
             <span className="text-xl font-bold gradient-text">AI Quantum</span>
-          </Link>
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex space-x-8">
             {navigation.map((item) => (
-              <Link
+              <button
                 key={item.name}
-                href={item.href}
-                className={`transition-colors hover:text-blue-400 ${
+                onClick={() => handleNavClick(item.href)}
+                className={`transition-colors hover:text-blue-400 cursor-pointer ${
                   pathname === item.href ? 'text-blue-400' : 'text-white'
                 }`}
               >
                 {item.name}
-              </Link>
+              </button>
             ))}
           </div>
 
@@ -70,17 +84,17 @@ export function Navigation() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="glassmorphism">
+                  <Button variant="ghost" className="glassmorphism hover:bg-white/10">
                     <User className="w-4 h-4 mr-2" />
-                    {user.email}
+                    {user.email.split('@')[0]}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="glassmorphism">
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">用户中心</Link>
+                <DropdownMenuContent className="glassmorphism border-white/20">
+                  <DropdownMenuItem onClick={() => handleNavClick('/dashboard')}>
+                    用户中心
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
+                  <DropdownMenuSeparator className="bg-white/20" />
+                  <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     登出
                   </DropdownMenuItem>
@@ -88,16 +102,19 @@ export function Navigation() {
               </DropdownMenu>
             ) : (
               <>
-                <Link href="/auth/login">
-                  <Button variant="ghost" className="glassmorphism">
-                    登录
-                  </Button>
-                </Link>
-                <Link href="/auth/register">
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    注册
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  className="glassmorphism hover:bg-white/10"
+                  onClick={() => handleNavClick('/auth/login')}
+                >
+                  登录
+                </Button>
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => handleNavClick('/auth/register')}
+                >
+                  注册
+                </Button>
               </>
             )}
           </div>
@@ -106,7 +123,7 @@ export function Navigation() {
           <Button
             variant="ghost"
             size="sm"
-            className="md:hidden"
+            className="md:hidden hover:bg-white/10"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -115,59 +132,56 @@ export function Navigation() {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-white/10">
-            <div className="flex flex-col space-y-4">
+          <div className="md:hidden py-4 border-t border-white/10 glassmorphism">
+            <div className="flex flex-col space-y-2">
               {navigation.map((item) => (
-                <Link
+                <button
                   key={item.name}
-                  href={item.href}
-                  className={`block py-2 px-4 rounded transition-colors ${
+                  onClick={() => handleNavClick(item.href)}
+                  className={`block py-3 px-4 rounded transition-colors text-left ${
                     pathname === item.href
                       ? 'text-blue-400 bg-blue-400/10'
                       : 'text-white hover:text-blue-400 hover:bg-white/5'
                   }`}
-                  onClick={() => setIsOpen(false)}
                 >
                   {item.name}
-                </Link>
+                </button>
               ))}
-              {user ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    用户中心
-                  </Link>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setIsOpen(false);
-                    }}
-                    className="block py-2 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5"
-                  >
-                    登出
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/auth/login"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    登录
-                  </Link>
-                  <Link
-                    href="/auth/register"
-                    className="block py-2 px-4 rounded text-white hover:text-blue-400 hover:bg-white/5"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    注册
-                  </Link>
-                </>
-              )}
+              
+              <div className="border-t border-white/10 pt-2 mt-2">
+                {user ? (
+                  <>
+                    <button
+                      onClick={() => handleNavClick('/dashboard')}
+                      className="block py-3 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5 w-full"
+                    >
+                      用户中心
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="block py-3 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5 w-full"
+                    >
+                      <LogOut className="w-4 h-4 mr-2 inline" />
+                      登出
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleNavClick('/auth/login')}
+                      className="block py-3 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5 w-full"
+                    >
+                      登录
+                    </button>
+                    <button
+                      onClick={() => handleNavClick('/auth/register')}
+                      className="block py-3 px-4 rounded text-left text-white hover:text-blue-400 hover:bg-white/5 w-full"
+                    >
+                      注册
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}

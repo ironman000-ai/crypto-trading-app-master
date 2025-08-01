@@ -63,6 +63,16 @@
   background-clip: text;
 }
 
+/* 确保按钮可点击 */
+button {
+  cursor: pointer;
+}
+
+/* 修复导航链接样式 */
+nav button:hover {
+  opacity: 0.8;
+}
+
 .glow-green {
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
 }
