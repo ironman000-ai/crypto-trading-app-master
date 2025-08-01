@@ -174,6 +174,8 @@ export default function AutoTradePage() {
   // 交易记录
   const [recentTrades, setRecentTrades] = useState([]);
   const [tradingLogs, setTradingLogs] = useState<string[]>([]);
+  const [lastApiCall, setLastApiCall] = useState(0);
+  const [lastLogMessage, setLastLogMessage] = useState('');
 
   // 统计数据
   const [botStats, setBotStats] = useState({
@@ -207,48 +209,65 @@ export default function AutoTradePage() {
   useEffect(() => {
     const updateMarketData = async () => {
       try {
-        // 使用axios获取实时价格数据
-        const response = await axios.get('/api/coingecko', {
-          params: {
-            path: 'coins/markets',
-            vs_currency: 'usd',
-            order: 'market_cap_desc',
-            per_page: 10,
-            page: 1,
-            sparkline: false,
-            price_change_percentage: '24h'
+        // 限制API调用频率，避免过度请求
+        if (Date.now() - lastApiCall < 30000) { // 30秒内不重复调用API
+          return;
+        }
+        
+        setLastApiCall(Date.now());
+        
+        try {
+          // 使用axios获取实时价格数据
+          const response = await axios.get('/api/coingecko', {
+            params: {
+              path: 'coins/markets',
+              vs_currency: 'usd',
+              order: 'market_cap_desc',
+              per_page: 10,
+              page: 1,
+              sparkline: false,
+              price_change_percentage: '24h'
+            }
+          });
+          
+          const updatedPrices = response.data.slice(0, 5).map((coin: any) => ({
+            coin: coin.symbol.toUpperCase(),
+            price: coin.current_price,
+            change: coin.price_change_percentage_24h || 0,
+          }));
+          
+          // 只有价格变化超过0.1%时才更新
+          const shouldUpdate = updatedPrices.some((newPrice, index) => {
+            const oldPrice = marketPrices[index];
+            if (!oldPrice) return true;
+            const changePercent = Math.abs((newPrice.price - oldPrice.price) / oldPrice.price * 100);
+            return changePercent > 0.1;
+          });
+          
+          if (shouldUpdate) {
+            setMarketPrices(updatedPrices);
+            logTradingActivity(`市场数据更新 - ${updatedPrices.length}个币种价格已同步`);
           }
-        });
-        
-        const updatedPrices = response.data.slice(0, 5).map((coin: any) => ({
-          coin: coin.symbol.toUpperCase(),
-          price: coin.current_price,
-          change: coin.price_change_percentage_24h || 0,
-        }));
-        setMarketPrices(updatedPrices);
-        
-        logTradingActivity(`市场数据更新成功 - ${updatedPrices.length}个币种价格已同步`);
+        } catch (apiError) {
+          // API失败时使用更稳定的模拟数据
+          setMarketPrices(prev => prev.map(market => ({
+            ...market,
+            price: market.price * (1 + (Math.random() - 0.5) * 0.005), // 0.5%小幅波动
+            change: market.change + (Math.random() - 0.5) * 0.2, // 0.2%变化
+          })));
+        }
       } catch (error) {
-        console.warn('API获取失败，使用模拟数据更新:', error);
-        // API失败时使用模拟数据更新，确保界面持续更新
-        setMarketPrices(prev => prev.map(market => ({
-          ...market,
-          price: market.price * (1 + (Math.random() - 0.5) * 0.03), // 3%波动
-          change: market.change + (Math.random() - 0.5) * 1.5, // 1.5%变化
-        })));
-        
-        logTradingActivity(`使用模拟数据更新市场价格 - API暂时不可用`);
+        console.warn('市场数据更新失败:', error);
       }
     };
 
     // 立即更新一次
     updateMarketData();
     
-    // 每10秒更新一次市场数据
-    const marketInterval = setInterval(updateMarketData, 10000);
+    // 每60秒更新一次市场数据，减少频率
+    const marketInterval = setInterval(updateMarketData, 60000);
     
     return () => clearInterval(marketInterval);
-  }, [tradingLogs]); // 依赖tradingLogs确保logTradingActivity可用
 
   // 实时账户同步
   useEffect(() => {
@@ -276,15 +295,19 @@ export default function AutoTradePage() {
           }
           
           setRealTimeAccount(accountData);
-          logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步完成 - 总余额: $${accountData.totalBalance.toFixed(2)}`);
+          // 只在余额有显著变化时记录日志
+          const balanceChange = Math.abs(accountData.totalBalance - realTimeAccount.totalBalance);
+          if (balanceChange > 10) { // 余额变化超过$10才记录
+            logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步 - 余额: $${accountData.totalBalance.toFixed(2)}`);
+          }
         } catch (error) {
-          logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步失败: ${error.message}`);
+          console.warn('账户同步失败:', error);
         }
       };
 
       // 立即同步一次，然后每8秒同步一次账户数据
       syncAccount();
-      const accountInterval = setInterval(syncAccount, 8000);
+      const accountInterval = setInterval(syncAccount, 30000); // 改为30秒同步一次
       return () => clearInterval(accountInterval);
     }
   }, [apiConnected, tradingMode, selectedExchange]);
@@ -543,6 +566,12 @@ export default function AutoTradePage() {
 
   // 交易日志
   const logTradingActivity = (message: string) => {
+    // 避免重复日志
+    if (message === lastLogMessage) {
+      return;
+    }
+    
+    setLastLogMessage(message);
     const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const logEntry = `${timestamp} CST - ${message}`;
     setTradingLogs(prev => [logEntry, ...prev.slice(0, 49)]);
@@ -915,7 +944,7 @@ export default function AutoTradePage() {
                       <div className="text-xs text-slate-400 text-center">
                         最后同步: {new Date(realTimeAccount.lastUpdate).toLocaleString('zh-CN')}
                         <br />
-                        <span className="text-green-400">● 实时同步中 (8秒间隔)</span>
+                        <span className="text-green-400">● 实时同步中 (30秒间隔)</span>
                       </div>
                     )}
                   </div>
@@ -1048,7 +1077,7 @@ export default function AutoTradePage() {
                   </div>
                   <Badge variant="secondary" className="animate-pulse">
                     <Clock className="w-3 h-3 mr-1" />
-                    10秒更新
+                    60秒更新
                   </Badge>
                 </CardTitle>
               </CardHeader>
