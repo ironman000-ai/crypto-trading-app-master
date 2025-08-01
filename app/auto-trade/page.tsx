@@ -426,8 +426,6 @@ export default function AutoTradePage() {
 
   const handleConnectAPI = async () => {
     try {
-      toast.loading('正在连接API...');
-      
       // Real API connection simulation with proper data fetching
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -756,7 +754,7 @@ export default function AutoTradePage() {
                   </CardContent>
                 </Card>
 
-                {/* Market Prices */}
+                {/* Real-time Market Data */}
                 <Card className="glassmorphism">
                   <CardHeader>
                     <CardTitle>实时行情 & 技术指标</CardTitle>
