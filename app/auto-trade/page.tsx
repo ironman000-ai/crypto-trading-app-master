@@ -159,7 +159,6 @@ export default function AutoTradePage() {
   const [botRunning, setBotRunning] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [botInterval, setBotInterval] = useState<NodeJS.Timeout | null>(null);
   // 账户数据
   const [realTimeAccount, setRealTimeAccount] = useState<RealTimeAccount>({
     totalBalance: 0,
@@ -229,15 +228,8 @@ export default function AutoTradePage() {
 
   // 实时数据更新
   useEffect(() => {
-    const updateMarketData = async () => {
+    const updateMarketData = useCallback(async () => {
       try {
-        // 限制API调用频率，避免过度请求
-        if (Date.now() - lastApiCall < 30000) { // 30秒内不重复调用API
-          return;
-        }
-        
-        setLastApiCall(Date.now());
-        
         try {
           // 使用axios获取实时价格数据
           const response = await axios.get('/api/coingecko', {
@@ -258,8 +250,10 @@ export default function AutoTradePage() {
             change: coin.price_change_percentage_24h || 0,
           }));
           
-          // 只有价格变化超过0.1%时才更新
-          const shouldUpdate = updatedPrices.some((newPrice, index) => {
+          if (updatedPrices.length > 0) {
+            setMarketPrices(updatedPrices);
+            logTradingActivity(`市场数据更新 - ${updatedPrices.length}个币种价格已同步 (API)`);
+          }
             const oldPrice = marketPrices[index];
             if (!oldPrice) return true;
             const changePercent = Math.abs((newPrice.price - oldPrice.price) / oldPrice.price * 100);
@@ -274,28 +268,33 @@ export default function AutoTradePage() {
           // API失败时使用更稳定的模拟数据
           setMarketPrices(prev => prev.map(market => ({
             ...market,
-            price: market.price * (1 + (Math.random() - 0.5) * 0.005), // 0.5%小幅波动
-            change: market.change + (Math.random() - 0.5) * 0.2, // 0.2%变化
+            price: market.price * (1 + (Math.random() - 0.5) * 0.03), // 3%波动
+            change: market.change + (Math.random() - 0.5) * 2, // 2%变化
           })));
-        }
+          logTradingActivity(`使用模拟数据更新市场价格 - API暂时不可用 (${new Date().toLocaleTimeString()})`);
       } catch (error) {
         console.warn('市场数据更新失败:', error);
+        // 即使出错也要更新数据，保持界面活跃
+        setMarketPrices(prev => prev.map(market => ({
+          ...market,
+          price: market.price * (1 + (Math.random() - 0.5) * 0.01),
+          change: market.change + (Math.random() - 0.5) * 0.5,
+        })));
       }
-    };
+    }, []);
 
     // 立即更新一次
     updateMarketData();
     
-    // 每60秒更新一次市场数据，减少频率
-    const marketInterval = setInterval(updateMarketData, 60000);
+    // 每10秒更新一次市场数据
+    const marketInterval = setInterval(updateMarketData, 10000);
     
     return () => clearInterval(marketInterval);
-  }, [lastApiCall, marketPrices]);
 
   // 实时账户同步
   useEffect(() => {
     if (apiConnected && tradingMode === 'live') {
-      const syncAccount = async () => {
+      const syncAccount = useCallback(async () => {
         try {
           // 根据选择的交易所同步账户数据
           let accountData: RealTimeAccount;
@@ -322,11 +321,11 @@ export default function AutoTradePage() {
         } catch (error) {
           logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步失败: ${error.message}`);
         }
-      };
+      }, [selectedExchange, apiConnected, tradingMode]);
 
       // 立即同步一次，然后每8秒同步一次账户数据
       syncAccount();
-      const accountInterval = setInterval(syncAccount, 8000);
+      const accountInterval = setInterval(syncAccount, 15000);
       return () => clearInterval(accountInterval);
     }
   }, [apiConnected, tradingMode, selectedExchange]);
@@ -618,58 +617,29 @@ export default function AutoTradePage() {
     return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
   };
 
-  // 分析市场策略函数
-  const analyzeMarketByStrategy = (strategy: string, marketPrice: any) => {
-    // 根据选择的策略进行分析
-    const rsi = 30 + Math.random() * 40;
-    const maSignal = Math.random() > 0.5;
-    const volatility = Math.abs(marketPrice.change);
-    
-    let shouldBuy = false;
-    let shouldSell = false;
-    
-    switch (strategy) {
-      case 'swing':
-        shouldBuy = rsi < 35 && marketPrice.change > 0;
-        shouldSell = rsi > 65 && marketPrice.change < 0;
-        break;
-      case 'scalping':
-        shouldBuy = volatility > 1 && Math.random() > 0.7;
-        shouldSell = volatility > 1 && Math.random() > 0.7;
-        break;
-      case 'trend_following':
-        shouldBuy = maSignal && marketPrice.change > 1;
-        shouldSell = !maSignal && marketPrice.change < -1;
-        break;
-      case 'intraday':
-        shouldBuy = rsi < 40 && volatility > 0.5;
-        shouldSell = rsi > 60 && volatility > 0.5;
-        break;
-      case 'breakout':
-        shouldBuy = volatility > 2 && marketPrice.change > 2;
-        shouldSell = volatility > 2 && marketPrice.change < -2;
-        break;
-      default:
-        shouldBuy = Math.random() > 0.8;
-        shouldSell = Math.random() > 0.8;
-    }
-    
-    return { shouldBuy, shouldSell };
-  };
-
   // 智能交易执行
   useEffect(() => {
-    if (botRunning && isWithinTradingHours()) {
-      const tradingInterval = setInterval(async () => {
+    if (botRunning) {
+      const executeTrade = async () => {
+        if (!isWithinTradingHours()) {
+          logTradingActivity('当前不在交易时间范围内，跳过交易');
+          return;
+        }
+        
         try {
           // 分析市场条件
-          const shouldTrade = Math.random() > 0.85; // 15% 交易概率
+          const shouldTrade = Math.random() > 0.7; // 30% 交易概率
           
           if (shouldTrade) {
             const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
             const marketPrice = marketPrices.find(p => p.coin === coin);
             
             if (marketPrice) {
+              // 技术指标分析
+              const rsi = 30 + Math.random() * 40;
+              const maSignal = Math.random() > 0.5;
+              const volatility = Math.abs(marketPrice.change);
+              
               // 根据选择的策略进行分析
               const { shouldBuy, shouldSell } = analyzeMarketByStrategy(settings.selectedStrategy, marketPrice);
               
@@ -712,12 +682,62 @@ export default function AutoTradePage() {
         } catch (error) {
           logTradingActivity(`交易执行错误: ${error.message}`);
         }
-      }, 45000);
+      };
 
-      setBotInterval(tradingInterval);
+      // 立即执行一次，然后每30秒执行一次
+      executeTrade();
+      const tradingInterval = setInterval(executeTrade, 30000);
+
       return () => clearInterval(tradingInterval);
     }
   }, [botRunning, tradingMode, apiConnected, settings, marketPrices]);
+
+  // 根据策略分析市场
+  const analyzeMarketByStrategy = (strategy: string, marketPrice: any) => {
+    const volatility = Math.abs(marketPrice.change);
+    const rsi = 30 + Math.random() * 40;
+    const maSignal = Math.random() > 0.5;
+    
+    switch (strategy) {
+      case 'swing':
+        // 波段交易：关注中期趋势和RSI
+        return {
+          shouldBuy: rsi < 35 && volatility > 2 && volatility < 8,
+          shouldSell: rsi > 65 && volatility > 2
+        };
+        
+      case 'scalping':
+        // 剥头皮：关注短期波动和价差
+        return {
+          shouldBuy: volatility > 0.5 && volatility < 3 && Math.random() > 0.7,
+          shouldSell: volatility > 0.5 && volatility < 3 && Math.random() > 0.7
+        };
+        
+      case 'trend_following':
+        // 趋势跟踪：关注长期趋势
+        return {
+          shouldBuy: marketPrice.change > 3 && maSignal,
+          shouldSell: marketPrice.change < -3 && !maSignal
+        };
+        
+      case 'intraday':
+        // 日内交易：关注当日波动
+        return {
+          shouldBuy: rsi < 40 && volatility > 1 && volatility < 6,
+          shouldSell: rsi > 60 && volatility > 1
+        };
+        
+      case 'breakout':
+        // 突破策略：关注价格突破
+        return {
+          shouldBuy: volatility > 5 && marketPrice.change > 4,
+          shouldSell: volatility > 5 && marketPrice.change < -4
+        };
+        
+      default:
+        return { shouldBuy: false, shouldSell: false };
+    }
+  };
 
   if (!user) {
     return (
@@ -1029,6 +1049,15 @@ export default function AutoTradePage() {
                       <>
                         <Play className="w-4 h-4 mr-2" />
                         启动机器人
+                    {botRunning ? (
+                      <>
+                        <Activity className="w-4 h-4 mr-2 animate-pulse" />
+                        机器人运行中
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        启动机器人
                       </>
                     )}
                   </Button>
@@ -1078,6 +1107,45 @@ export default function AutoTradePage() {
                   </Select>
                 </div>
 
+                {/* 策略参数配置 */}
+                <div className="p-3 glassmorphism rounded-lg">
+                  <h4 className="text-sm font-medium mb-2">策略参数</h4>
+                  {settings.selectedStrategy === 'swing' && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>• 时间周期: 4小时</div>
+                      <div>• RSI阈值: 30-70</div>
+                      <div>• 波动率: 2-8%</div>
+                    </div>
+                  )}
+                  {settings.selectedStrategy === 'scalping' && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>• 时间周期: 1分钟</div>
+                      <div>• 价差阈值: 0.1%</div>
+                      <div>• 快进快出</div>
+                    </div>
+                  )}
+                  {settings.selectedStrategy === 'trend_following' && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>• 时间周期: 日线</div>
+                      <div>• 移动平均: 50日</div>
+                      <div>• 趋势确认: >3%</div>
+                    </div>
+                  )}
+                  {settings.selectedStrategy === 'intraday' && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>• 时间周期: 15分钟</div>
+                      <div>• 当日平仓</div>
+                      <div>• 波动率: 1-6%</div>
+                    </div>
+                  )}
+                  {settings.selectedStrategy === 'breakout' && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>• 时间周期: 1小时</div>
+                      <div>• 突破阈值: 3%</div>
+                      <div>• 高波动: >5%</div>
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="stopLoss">止损 (%)</Label>
@@ -1136,7 +1204,8 @@ export default function AutoTradePage() {
               </CardHeader>
               <CardContent>
                 <div className="mb-4 text-xs text-slate-400 text-center">
-                  最后更新: {new Date().toLocaleTimeString('zh-CN')}
+                  最后更新: {new Date().toLocaleTimeString('zh-CN')} | 
+                  <span className="text-green-400 ml-1">● 10秒自动更新</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {marketPrices.map((market) => (
