@@ -95,7 +95,7 @@ export default function AutoTradePage() {
       icon: '⚫',
       testnetSupported: true,
       permissions: ['spot', 'futures', 'options']
-    }
+    },
     {
       id: 'huobi',
       name: '火币 (Huobi)',
