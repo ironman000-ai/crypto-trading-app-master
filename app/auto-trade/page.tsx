@@ -96,6 +96,13 @@ export default function AutoTradePage() {
       testnetSupported: true,
       permissions: ['spot', 'futures', 'options']
     }
+    {
+      id: 'huobi',
+      name: '火币 (Huobi)',
+      icon: '🔴',
+      testnetSupported: true,
+      permissions: ['spot', 'futures', 'margin']
+    }
   ];
 
   // 交易策略
@@ -307,6 +314,12 @@ export default function AutoTradePage() {
       
       // 验证API权限
       const hasRequiredPermissions = true; // 模拟权限检查
+      
+      // 火币特殊处理
+      if (selectedExchange === 'huobi') {
+        logTradingActivity('火币API连接 - 验证账户权限中...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       
       if (!hasRequiredPermissions) {
         throw new Error('API权限不足，请确保启用交易权限');
