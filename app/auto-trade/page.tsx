@@ -804,17 +804,24 @@ export default function AutoTradePage() {
             {/* Recent Trades */}
             <Card className="glassmorphism">
               <CardHeader>
-                <CardTitle>最近交易</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>最近交易</span>
+                  <Badge variant="secondary">
+                    {recentTrades.length} 笔记录
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {recentTrades.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
-                    暂无交易记录
+                    {botRunning ? '等待首笔交易...' : '启动机器人开始自动交易'}
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {recentTrades.map((trade) => (
-                      <div key={trade.id} className="flex items-center justify-between p-3 glassmorphism rounded-lg">
+                      <div key={trade.id} className={`flex items-center justify-between p-3 glassmorphism rounded-lg border-l-4 ${
+                        trade.profit >= 0 ? 'border-green-400' : 'border-red-400'
+                      }`}>
                         <div className="flex items-center space-x-3">
                           <div className={`w-2 h-2 rounded-full ${trade.profit >= 0 ? 'bg-green-400' : 'bg-red-400'}`} />
                           <div>
