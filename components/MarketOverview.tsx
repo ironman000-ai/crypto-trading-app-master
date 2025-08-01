@@ -4,12 +4,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { TrendingUp, TrendingDown, Wifi, WifiOff, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { cryptoAPI, useRealTimeCryptoPrices, CryptoPrice } from '@/lib/crypto-api';
+import { optimizedCryptoAPI, useOptimizedCryptoPrices, CryptoPrice } from '@/lib/crypto-api';
 
 const POPULAR_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
 
 export function MarketOverview() {
-  const { data, loading, error } = useRealTimeCryptoPrices(POPULAR_COINS);
+  const { data, loading, error } = useOptimizedCryptoPrices(POPULAR_COINS);
   const [priceAnimations, setPriceAnimations] = useState<Map<string, 'up' | 'down' | null>>(new Map());
   const [lastPrices, setLastPrices] = useState<Map<string, number>>(new Map());
   const [marketOverview, setMarketOverview] = useState<any>(null);
@@ -27,7 +27,7 @@ export function MarketOverview() {
   // 获取市场概览数据
   useEffect(() => {
     const fetchMarketOverview = async () => {
-      const overview = await cryptoAPI.getMarketOverview();
+      const overview = await optimizedCryptoAPI.getMarketOverview();
       setMarketOverview(overview);
     };
 
@@ -137,11 +137,11 @@ export function MarketOverview() {
             <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
             <Badge variant="default" className="bg-green-600">
               <Activity className="w-3 h-3 mr-1" />
-              CoinGecko + 币安实时数据
+              优化版API - CoinGecko + Binance
             </Badge>
           </div>
           <span className="text-sm text-green-400">
-            {data.size} 个币种实时更新 (30秒刷新)
+            {data.size} 个币种实时更新 (智能缓存 + 10秒刷新)
           </span>
         </div>
       </div>
@@ -267,7 +267,7 @@ export function MarketOverview() {
                 {/* 数据来源和更新时间 */}
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                    <span>CoinGecko + 币安数据</span>
+                    <span>优化版API (Binance优先)</span>
                     <span>{new Date(coinData.timestamp).toLocaleTimeString('zh-CN', {
                       hour12: false,
                       hour: '2-digit',
@@ -276,7 +276,7 @@ export function MarketOverview() {
                     })}</span>
                   </div>
                   <div className="text-xs text-center text-slate-500">
-                    数据每30秒自动更新
+                    智能缓存 + 10秒高频更新
                   </div>
                 </div>
               </CardContent>

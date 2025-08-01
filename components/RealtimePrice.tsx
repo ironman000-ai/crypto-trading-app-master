@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, Activity, Wifi, WifiOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useRealTimeCryptoPrice, useRealTimeCryptoPrices } from '@/lib/crypto-api';
+import { useOptimizedCryptoPrice, useOptimizedCryptoPrices } from '@/lib/crypto-api';
 
 interface RealtimePriceProps {
   symbol: string;
@@ -18,7 +18,7 @@ export function RealtimePrice({
   showBidAsk = false,
   className = "" 
 }: RealtimePriceProps) {
-  const { data, loading, error } = useRealTimeCryptoPrice(symbol);
+  const { data, loading, error, dataSource } = useOptimizedCryptoPrice(symbol);
   const [priceAnimation, setPriceAnimation] = React.useState<'up' | 'down' | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number>(0);
 
@@ -106,7 +106,9 @@ export function RealtimePrice({
           <span className="font-bold text-lg">{symbol}</span>
           <div className="flex items-center space-x-1">
             <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
-            <span className="text-xs text-green-400">实时</span>
+            <span className="text-xs text-green-400">
+              {dataSource === 'hybrid' ? '智能' : dataSource === 'binance' ? 'Binance' : 'CoinGecko'}
+            </span>
           </div>
         </div>
       </div>
@@ -161,7 +163,7 @@ export function RealtimePrice({
 
 // 实时价格列表组件
 export function RealtimePriceList({ symbols }: { symbols: string[] }) {
-  const { data, loading, error } = useRealTimeCryptoPrices(symbols);
+  const { data, loading, error } = useOptimizedCryptoPrices(symbols);
 
   return (
     <div className="space-y-2">
@@ -171,7 +173,7 @@ export function RealtimePriceList({ symbols }: { symbols: string[] }) {
           {!loading && !error ? (
             <>
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-sm text-green-400">CoinGecko + 币安数据已连接</span>
+              <span className="text-sm text-green-400">优化版API已连接 (智能数据源)</span>
             </>
           ) : (
             <>
