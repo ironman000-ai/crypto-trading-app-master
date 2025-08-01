@@ -60,9 +60,24 @@ export default function AIPredictionPage() {
   const coins = [
     { value: 'BTC', label: 'Bitcoin (BTC)', id: 'bitcoin' },
     { value: 'ETH', label: 'Ethereum (ETH)', id: 'ethereum' },
+    { value: 'BNB', label: 'BNB (BNB)', id: 'binancecoin' },
     { value: 'SOL', label: 'Solana (SOL)', id: 'solana' },
-    { value: 'DOGE', label: 'Dogecoin (DOGE)', id: 'dogecoin' },
+    { value: 'XRP', label: 'XRP (XRP)', id: 'ripple' },
+    { value: 'USDC', label: 'USD Coin (USDC)', id: 'usd-coin' },
     { value: 'ADA', label: 'Cardano (ADA)', id: 'cardano' },
+    { value: 'AVAX', label: 'Avalanche (AVAX)', id: 'avalanche-2' },
+    { value: 'DOGE', label: 'Dogecoin (DOGE)', id: 'dogecoin' },
+    { value: 'TRX', label: 'TRON (TRX)', id: 'tron' },
+    { value: 'DOT', label: 'Polkadot (DOT)', id: 'polkadot' },
+    { value: 'MATIC', label: 'Polygon (MATIC)', id: 'matic-network' },
+    { value: 'LTC', label: 'Litecoin (LTC)', id: 'litecoin' },
+    { value: 'SHIB', label: 'Shiba Inu (SHIB)', id: 'shiba-inu' },
+    { value: 'UNI', label: 'Uniswap (UNI)', id: 'uniswap' },
+    { value: 'ATOM', label: 'Cosmos (ATOM)', id: 'cosmos' },
+    { value: 'LINK', label: 'Chainlink (LINK)', id: 'chainlink' },
+    { value: 'APT', label: 'Aptos (APT)', id: 'aptos' },
+    { value: 'ICP', label: 'Internet Computer (ICP)', id: 'internet-computer' },
+    { value: 'FIL', label: 'Filecoin (FIL)', id: 'filecoin' },
   ];
 
   const timeframes = [
@@ -144,10 +159,30 @@ export default function AIPredictionPage() {
   };
 
   const generateFallbackMarketData = () => {
-    const basePrice = selectedCoin === 'BTC' ? 45000 : 
-                     selectedCoin === 'ETH' ? 2800 : 
-                     selectedCoin === 'SOL' ? 95 : 
-                     selectedCoin === 'DOGE' ? 0.08 : 0.45;
+    const basePrices: { [key: string]: number } = {
+      'BTC': 45000,
+      'ETH': 2800,
+      'BNB': 320,
+      'SOL': 95,
+      'XRP': 0.52,
+      'USDC': 1.00,
+      'ADA': 0.45,
+      'AVAX': 28,
+      'DOGE': 0.08,
+      'TRX': 0.11,
+      'DOT': 6.5,
+      'MATIC': 0.85,
+      'LTC': 75,
+      'SHIB': 0.000012,
+      'UNI': 8.5,
+      'ATOM': 12,
+      'LINK': 15,
+      'APT': 9.5,
+      'ICP': 5.2,
+      'FIL': 4.8,
+    };
+    
+    const basePrice = basePrices[selectedCoin] || 100;
     
     const fallbackData: MarketData[] = [];
     
@@ -217,6 +252,14 @@ export default function AIPredictionPage() {
       const priceChange24h = response.data[0]?.price_change_percentage_24h || 0;
       const volume24h = response.data[0]?.total_volume || 1000000000;
       
+      // Get base price for fallback calculations
+      const basePrices: { [key: string]: number } = {
+        'BTC': 45000, 'ETH': 2800, 'BNB': 320, 'SOL': 95, 'XRP': 0.52,
+        'USDC': 1.00, 'ADA': 0.45, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
+        'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
+        'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,
+      };
+      
       // Enhanced AI prediction logic
       const marketSentiment = priceChange24h > 0 ? 1 : -1;
       const volumeStrength = volume24h > 1000000000 ? 1.2 : 0.8;
@@ -284,6 +327,16 @@ export default function AIPredictionPage() {
       setPrediction(enhancedPrediction);
     } catch (error) {
       console.warn('Using fallback prediction data');
+      
+      // Enhanced fallback prediction with coin-specific data
+      const basePrices: { [key: string]: number } = {
+        'BTC': 45000, 'ETH': 2800, 'BNB': 320, 'SOL': 95, 'XRP': 0.52,
+        'USDC': 1.00, 'ADA': 0.45, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
+        'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
+        'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,
+      };
+      
+      const basePrice = basePrices[selectedCoin] || 100;
       // Enhanced fallback prediction
       const confidence = Math.floor(Math.random() * 25) + 70;
       const upProb = Math.floor(Math.random() * 60) + 20;
@@ -299,8 +352,8 @@ export default function AIPredictionPage() {
         },
         trend: upProb > 50 ? 'bullish' : 'bearish',
         signal_strength: confidence > 85 ? 'strong' : confidence > 75 ? 'moderate' : 'weak',
-        support_level: selectedCoin === 'BTC' ? 44000 : selectedCoin === 'ETH' ? 2700 : 90,
-        resistance_level: selectedCoin === 'BTC' ? 46000 : selectedCoin === 'ETH' ? 2900 : 100,
+        support_level: basePrice * 0.95,
+        resistance_level: basePrice * 1.05,
         recommendation: '基于历史数据的预测分析',
         short_term_trend: 'sideways',
         long_term_trend: 'up',
