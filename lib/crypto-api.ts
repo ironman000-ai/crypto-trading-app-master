@@ -171,25 +171,14 @@ class OptimizedCryptoAPIManager {
     if (cached) return cached;
 
     try {
-      const coinId = this.coinGeckoIds[symbol];
-      if (!coinId) throw new Error(`CoinGecko不支持的币种: ${symbol}`);
-
-      const response = await fetch(
-        `${this.COINGECKO_BASE_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true&include_last_updated_at=true`,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'AI-Quantum-Trading/1.0'
-          }
-        }
-      );
+      const response = await fetch(`/api/crypto?endpoint=simple/price&ids=${this.coinGeckoIds[symbol]}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true&include_last_updated_at=true`);
 
       if (!response.ok) {
         throw new Error(`CoinGecko API错误: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      const coinData = data[coinId];
+      const coinData = data[this.coinGeckoIds[symbol]];
 
       if (!coinData) {
         throw new Error(`CoinGecko未找到币种数据: ${symbol}`);
@@ -602,11 +591,7 @@ class OptimizedCryptoAPIManager {
     if (cached) return cached;
 
     try {
-      const response = await fetch('/api/crypto?endpoint=global', {
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
+      const response = await fetch('/api/crypto?endpoint=global');
 
       if (!response.ok) {
         throw new Error(`市场概览API错误: ${response.status}`);

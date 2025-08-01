@@ -32,6 +32,7 @@ export function RealtimeChart({
   const [chartData, setChartData] = React.useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const { data: realtimePriceData, loading: priceLoading, error: priceError } = useOptimizedCryptoPrice(symbol);
   const [priceStats, setPriceStats] = React.useState({
     min: 0,
     max: 0,
@@ -83,17 +84,17 @@ export function RealtimeChart({
   }, [symbol, maxDataPoints]);
 
   React.useEffect(() => {
-    if (data) {
+    if (realtimePriceData) {
       const newPoint: ChartDataPoint = {
-        time: new Date(data.timestamp).toLocaleTimeString('zh-CN', { 
+        time: new Date(realtimePriceData.timestamp).toLocaleTimeString('zh-CN', { 
           hour12: false,
           hour: '2-digit', 
           minute: '2-digit', 
           second: '2-digit'
         }),
-        price: data.price,
-        volume: data.volume,
-        timestamp: data.timestamp,
+        price: realtimePriceData.price,
+        volume: realtimePriceData.volume24h,
+        timestamp: realtimePriceData.timestamp,
       };
 
       setChartData(prev => {
@@ -120,7 +121,7 @@ export function RealtimeChart({
         return newData;
       });
     }
-  }, [maxDataPoints]);
+  }, [realtimePriceData, maxDataPoints]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000) return `$${price.toFixed(2)}`;
@@ -144,7 +145,7 @@ export function RealtimeChart({
                 <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
                 <Badge variant="default" className="bg-green-600">
                   <Activity className="w-3 h-3 mr-1" />
-                  CoinGecko数据
+                  实时数据
                 </Badge>
               </div>
             ) : (
@@ -293,7 +294,7 @@ export function RealtimeChart({
 
         {!loading && !error && (
           <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-            <span>📊 CoinGecko历史数据</span>
+            <span>📊 实时数据源</span>
             <span>🔄 每小时更新</span>
             <span>📈 {chartData.length > 0 ? `${chartData.length}个数据点` : '无数据'}</span>
           </div>
