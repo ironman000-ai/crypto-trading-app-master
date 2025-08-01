@@ -205,15 +205,34 @@ export default function AutoTradePage() {
 
   // 实时数据更新
   useEffect(() => {
-    const updateMarketData = () => {
-      setMarketPrices(prev => prev.map(market => ({
-        ...market,
-        price: market.price * (1 + (Math.random() - 0.5) * 0.02),
-        change: (Math.random() - 0.5) * 10,
-      })));
+    const updateMarketData = async () => {
+      try {
+        // 尝试从API获取实时价格
+        const response = await fetch('/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h');
+        if (response.ok) {
+          const data = await response.json();
+          const updatedPrices = data.slice(0, 5).map((coin: any) => ({
+            coin: coin.symbol.toUpperCase(),
+            price: coin.current_price,
+            change: coin.price_change_percentage_24h || 0,
+          }));
+          setMarketPrices(updatedPrices);
+        } else {
+          throw new Error('API请求失败');
+        }
+      } catch (error) {
+        // API失败时使用模拟数据更新
+        setMarketPrices(prev => prev.map(market => ({
+          ...market,
+          price: market.price * (1 + (Math.random() - 0.5) * 0.02),
+          change: market.change + (Math.random() - 0.5) * 2,
+        })));
+      }
     };
 
-    const marketInterval = setInterval(updateMarketData, 30000);
+    // 立即更新一次，然后每15秒更新
+    updateMarketData();
+    const marketInterval = setInterval(updateMarketData, 15000);
     return () => clearInterval(marketInterval);
   }, []);
 
@@ -222,27 +241,38 @@ export default function AutoTradePage() {
     if (apiConnected && tradingMode === 'live') {
       const syncAccount = async () => {
         try {
-          // 模拟API调用获取实时账户数据
-          const mockAccountData: RealTimeAccount = {
-            totalBalance: 15000 + Math.random() * 5000,
-            availableBalance: 12000 + Math.random() * 3000,
-            positions: generateMockPositions(),
-            orders: generateMockOrders(),
-            lastUpdate: new Date().toISOString()
-          };
+          // 根据选择的交易所同步账户数据
+          let accountData: RealTimeAccount;
           
-          setRealTimeAccount(mockAccountData);
-          logTradingActivity(`账户同步完成 - 总余额: $${mockAccountData.totalBalance.toFixed(2)}`);
+          if (selectedExchange === 'huobi') {
+            // 火币API同步
+            accountData = await syncHuobiAccount();
+          } else if (selectedExchange === 'binance') {
+            // Binance API同步
+            accountData = await syncBinanceAccount();
+          } else if (selectedExchange === 'okx') {
+            // OKX API同步
+            accountData = await syncOKXAccount();
+          } else if (selectedExchange === 'coinbase') {
+            // Coinbase API同步
+            accountData = await syncCoinbaseAccount();
+          } else {
+            // 默认模拟数据
+            accountData = generateMockAccountData();
+          }
+          
+          setRealTimeAccount(accountData);
+          logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步完成 - 总余额: $${accountData.totalBalance.toFixed(2)}`);
         } catch (error) {
-          logTradingActivity('账户同步失败，请检查API连接');
+          logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步失败: ${error.message}`);
         }
       };
 
-      // 每10秒同步一次账户数据
-      const accountInterval = setInterval(syncAccount, 10000);
+      // 立即同步一次，然后每8秒同步一次账户数据
+      syncAccount();
+      const accountInterval = setInterval(syncAccount, 8000);
       return () => clearInterval(accountInterval);
     }
-  }, [apiConnected, tradingMode]);
 
   // 生成模拟持仓
   const generateMockPositions = (): RealTimePosition[] => {
