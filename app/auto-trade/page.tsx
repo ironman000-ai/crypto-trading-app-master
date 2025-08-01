@@ -165,10 +165,10 @@ export default function AutoTradePage() {
   // 市场数据
   const [marketPrices, setMarketPrices] = useState([
     { coin: 'BTC', price: 45000, change: 2.5 },
-    { coin: 'ETH', price: 2800, change: -1.2 },
-    { coin: 'SOL', price: 95, change: 5.8 },
-    { coin: 'ADA', price: 0.45, change: -0.8 },
-    { coin: 'DOT', price: 6.5, change: 3.2 },
+    { coin: 'ETH', price: 2800, change: 1.8 },
+    { coin: 'SOL', price: 95, change: -0.5 },
+    { coin: 'DOGE', price: 0.08, change: 3.2 },
+    { coin: 'ADA', price: 0.45, change: 1.1 },
   ]);
 
   // 交易记录
@@ -207,34 +207,48 @@ export default function AutoTradePage() {
   useEffect(() => {
     const updateMarketData = async () => {
       try {
-        // 尝试从API获取实时价格
-        const response = await fetch('/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h');
-        if (response.ok) {
-          const data = await response.json();
-          const updatedPrices = data.slice(0, 5).map((coin: any) => ({
-            coin: coin.symbol.toUpperCase(),
-            price: coin.current_price,
-            change: coin.price_change_percentage_24h || 0,
-          }));
-          setMarketPrices(updatedPrices);
-        } else {
-          throw new Error('API请求失败');
-        }
+        // 使用axios获取实时价格数据
+        const response = await axios.get('/api/coingecko', {
+          params: {
+            path: 'coins/markets',
+            vs_currency: 'usd',
+            order: 'market_cap_desc',
+            per_page: 10,
+            page: 1,
+            sparkline: false,
+            price_change_percentage: '24h'
+          }
+        });
+        
+        const updatedPrices = response.data.slice(0, 5).map((coin: any) => ({
+          coin: coin.symbol.toUpperCase(),
+          price: coin.current_price,
+          change: coin.price_change_percentage_24h || 0,
+        }));
+        setMarketPrices(updatedPrices);
+        
+        logTradingActivity(`市场数据更新成功 - ${updatedPrices.length}个币种价格已同步`);
       } catch (error) {
-        // API失败时使用模拟数据更新
+        console.warn('API获取失败，使用模拟数据更新:', error);
+        // API失败时使用模拟数据更新，确保界面持续更新
         setMarketPrices(prev => prev.map(market => ({
           ...market,
-          price: market.price * (1 + (Math.random() - 0.5) * 0.02),
-          change: market.change + (Math.random() - 0.5) * 2,
+          price: market.price * (1 + (Math.random() - 0.5) * 0.03), // 3%波动
+          change: market.change + (Math.random() - 0.5) * 1.5, // 1.5%变化
         })));
+        
+        logTradingActivity(`使用模拟数据更新市场价格 - API暂时不可用`);
       }
     };
 
-    // 立即更新一次，然后每15秒更新
+    // 立即更新一次
     updateMarketData();
-    const marketInterval = setInterval(updateMarketData, 15000);
+    
+    // 每10秒更新一次市场数据
+    const marketInterval = setInterval(updateMarketData, 10000);
+    
     return () => clearInterval(marketInterval);
-  }, []);
+  }, [tradingLogs]); // 依赖tradingLogs确保logTradingActivity可用
 
   // 实时账户同步
   useEffect(() => {
@@ -1028,14 +1042,20 @@ export default function AutoTradePage() {
             <Card className="glassmorphism">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>实时行情</span>
+                  <div className="flex items-center space-x-2">
+                    <span>实时行情</span>
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  </div>
                   <Badge variant="secondary" className="animate-pulse">
                     <Clock className="w-3 h-3 mr-1" />
-                    实时更新
+                    10秒更新
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 text-xs text-slate-400 text-center">
+                  最后更新: {new Date().toLocaleTimeString('zh-CN')}
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {marketPrices.map((market) => (
                     <div key={market.coin} className="p-4 glassmorphism rounded-lg">
@@ -1047,7 +1067,18 @@ export default function AutoTradePage() {
                         </div>
                       </div>
                       <div className="text-lg font-bold">
-                        ${market.price.toLocaleString()}
+                        ${market.price.toLocaleString(undefined, { 
+                          minimumFractionDigits: market.price >= 1 ? 2 : 4,
+                          maximumFractionDigits: market.price >= 1000 ? 0 : 4
+                        })}
+                      </div>
+                      <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-1000 ${
+                            market.change >= 0 ? 'bg-green-400' : 'bg-red-400'
+                          }`}
+                          style={{ width: `${Math.min(Math.abs(market.change) * 10, 100)}%` }}
+                        />
                       </div>
                     </div>
                   ))}
