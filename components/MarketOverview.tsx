@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import axios from 'axios';
 
 interface CoinData {
   id: string;
@@ -27,10 +26,11 @@ export function MarketOverview() {
         
         // 获取前6个热门加密货币的数据 - 使用AllTick API
         const coinIds = 'bitcoin,ethereum,binancecoin,solana,ripple,cardano';
-        const response = await axios.get(`/api/alltick?endpoint=realtime&symbols=${coinIds}`);
+        const response = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinIds}`);
+        const data = await response.json();
         
         // AllTick API 数据已经是正确格式
-        const formattedData: CoinData[] = response.data.map((coin: any) => ({
+        const formattedData: CoinData[] = data.map((coin: any) => ({
           id: coin.id,
           symbol: coin.symbol.toUpperCase(),
           name: coin.name,

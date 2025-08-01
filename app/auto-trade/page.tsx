@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import axios from 'axios';
 
 interface TradingConfig {
   symbol: string;
@@ -125,35 +124,25 @@ export default function AutoTradePage() {
       const coinId = coinMap[config.symbol] || 'bitcoin';
       
       // 获取当前价格和24小时数据 - 使用AllTick API
-      const marketResponse = await axios.get('/api/alltick', {
-        params: {
-          endpoint: 'realtime',
-          symbols: coinId
-        }
-      });
+      const marketResponse = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinId}`);
+      const marketData = await marketResponse.json();
       
       // 获取历史价格数据用于技术分析 - 使用AllTick API
-      const chartResponse = await axios.get('/api/alltick', {
-        params: {
-          endpoint: 'kline',
-          symbol: coinId,
-          period: '1h',
-          count: 168 // 7天的小时数据
-        }
-      });
+      const chartResponse = await fetch(`/api/alltick?endpoint=kline&symbol=${coinId}&period=1h&count=168`);
+      const chartData = await chartResponse.json();
       
-      const marketData = marketResponse.data[0];
-      const priceHistory = chartResponse.data.prices || [];
+      const currentMarketData = marketData[0];
+      const priceHistory = chartData.prices || [];
       
-      if (!marketData || priceHistory.length === 0) {
+      if (!currentMarketData || priceHistory.length === 0) {
         throw new Error('市场数据不完整');
       }
       
       // 计算技术指标
       const prices = priceHistory.map((p: [number, number]) => p[1]);
-      const currentPrice = marketData.current_price;
-      const priceChange24h = marketData.price_change_percentage_24h || 0;
-      const volume24h = marketData.total_volume || 0;
+      const currentPrice = currentMarketData.current_price;
+      const priceChange24h = currentMarketData.price_change_percentage_24h || 0;
+      const volume24h = currentMarketData.total_volume || 0;
       
       // 计算RSI (简化版)
       const rsi = calculateRSI(prices);

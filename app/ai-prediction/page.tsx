@@ -10,7 +10,6 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ComposedChart, Bar } from 'recharts';
-import axios from 'axios';
 
 interface PredictionResult {
   up_probability: number;
@@ -115,18 +114,12 @@ export default function AIPredictionPage() {
       const count = timeframe.includes('m') ? 100 : timeframe === '1h' ? 168 : 100;
 
       // 使用AllTick API获取K线数据
-      const response = await axios.get('/api/alltick', {
-        params: {
-          endpoint: 'kline',
-          symbol: coinData.id,
-          period: period,
-          count: count
-        }
-      });
+      const response = await fetch(`/api/alltick?endpoint=kline&symbol=${coinData.id}&period=${period}&count=${count}`);
+      const data = await response.json();
 
       // Process and enhance data
-      const prices = response.data.prices || [];
-      const volumes = response.data.total_volumes || [];
+      const prices = data.prices || [];
+      const volumes = data.total_volumes || [];
       
       const enhancedData = prices.slice(-50).map((pricePoint: [number, number], index: number) => {
         const [timestamp, price] = pricePoint;
@@ -253,16 +246,12 @@ export default function AIPredictionPage() {
       if (!coinData) return;
       
       // 使用AllTick API获取实时市场数据
-      const response = await axios.get('/api/alltick', {
-        params: {
-          endpoint: 'realtime',
-          symbols: coinData.id
-        }
-      });
+      const response = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinData.id}`);
+      const data = await response.json();
       
-      const currentPrice = response.data[0]?.current_price || 45000;
-      const priceChange24h = response.data[0]?.price_change_percentage_24h || 0;
-      const volume24h = response.data[0]?.total_volume || 1000000000;
+      const currentPrice = data[0]?.current_price || 45000;
+      const priceChange24h = data[0]?.price_change_percentage_24h || 0;
+      const volume24h = data[0]?.total_volume || 1000000000;
       
       // Get base price for fallback calculations
       const basePrices: { [key: string]: number } = {
