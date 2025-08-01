@@ -62,8 +62,8 @@ export function MarketOverview() {
     };
 
     fetchCoinData();
-    // 每30秒更新一次数据（Pro API有更高的速率限制）
-    const interval = setInterval(fetchCoinData, 30000);
+    // 每2分钟更新一次数据以避免API速率限制
+    const interval = setInterval(fetchCoinData, 120000);
 
     return () => clearInterval(interval);
   }, []);

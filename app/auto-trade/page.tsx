@@ -464,11 +464,11 @@ export default function AutoTradePage() {
       // 立即进行一次市场分析
       fetchMarketAnalysis();
       
-      // 设置市场分析定时器 (每30秒分析一次)
-      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 30000);
+      // 设置市场分析定时器 (每2分钟分析一次)
+      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 120000);
       
-      // 设置交易决策定时器 (每60秒检查一次交易机会)
-      tradingIntervalRef.current = setInterval(runTradingBot, 60000);
+      // 设置交易决策定时器 (每3分钟检查一次交易机会)
+      tradingIntervalRef.current = setInterval(runTradingBot, 180000);
     } else {
       if (analysisIntervalRef.current) {
         clearInterval(analysisIntervalRef.current);
