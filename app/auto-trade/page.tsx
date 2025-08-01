@@ -219,7 +219,6 @@ export default function AutoTradePage() {
     fetchMarketPrices();
     const interval = setInterval(fetchMarketPrices, 30000); // Update every 30 seconds
 
-      if (hftInterval) clearInterval(hftInterval);
     return () => clearInterval(interval);
   }, []);
 
@@ -728,6 +727,11 @@ export default function AutoTradePage() {
                               <Badge variant={position.profit >= 0 ? 'default' : 'destructive'}>
                                 {position.profit >= 0 ? '+' : ''}${position.profit.toFixed(2)}
                               </Badge>
+                              {technicalIndicators[coin.symbol] && (
+                                <Badge variant="outline" className="text-xs">
+                                  {technicalIndicators[coin.symbol].trend === 'bullish' ? '📈' : '📉'}
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-sm text-slate-400">
                               <div>数量: {position.amount.toFixed(6)}</div>
@@ -759,6 +763,46 @@ export default function AutoTradePage() {
                               </div>
                             </div>
                           </div>
+                          
+                          {/* Technical Indicators Display */}
+                          {technicalIndicators[coin.symbol] && (
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">RSI:</span>
+                                <span className={
+                                  technicalIndicators[coin.symbol].rsi > 70 ? 'text-red-400' :
+                                  technicalIndicators[coin.symbol].rsi < 30 ? 'text-green-400' : 'text-slate-300'
+                                }>
+                                  {technicalIndicators[coin.symbol].rsi?.toFixed(1) || 'N/A'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">MACD:</span>
+                                <span className={
+                                  technicalIndicators[coin.symbol].macd?.histogram > 0 ? 'text-green-400' : 'text-red-400'
+                                }>
+                                  {technicalIndicators[coin.symbol].macd?.histogram > 0 ? '↗' : '↘'}
+                                </span>
+                              </div>
+                              {technicalIndicators[coin.symbol].bollingerBands && (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">BB位置:</span>
+                                    <span className="text-slate-300">
+                                      {coin.price <= technicalIndicators[coin.symbol].bollingerBands.lower ? '下轨' :
+                                       coin.price >= technicalIndicators[coin.symbol].bollingerBands.upper ? '上轨' : '中位'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">波动率:</span>
+                                    <span className="text-slate-300">
+                                      {technicalIndicators[coin.symbol].volatility?.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
                           
                           {/* Technical Indicators */}
                           <div className="grid grid-cols-3 gap-2 text-xs">
