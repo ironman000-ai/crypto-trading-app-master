@@ -20,10 +20,36 @@ interface BotSettings {
   stopLoss: number;
   takeProfit: number;
   coins: string[];
+  tradingHours: {
+    start: string; // UTC time
+    end: string;   // UTC time
+    enabled: boolean;
+  };
+  technicalIndicators: {
+    rsi: {
+      period: number;
+      overbought: number;
+      oversold: number;
+    };
+    ma: {
+      shortPeriod: number;
+      longPeriod: number;
+    };
+    bollingerBands: {
+      period: number;
+      stdDev: number;
+    };
+    atr: {
+      period: number;
+      highVolatilityThreshold: number;
+    };
+  };
   riskManagement: {
     maxDrawdown: number;
     diversificationLimit: number;
     positionSizing: 'fixed' | 'percentage' | 'kelly';
+    maxRiskPerTrade: number;
+    minROIThreshold: number;
   };
 }
 
@@ -52,15 +78,41 @@ export default function AutoTradePage() {
   const [botRunning, setBotRunning] = useState(false);
   const [settings, setSettings] = useState<BotSettings>({
     enabled: false,
-    maxInvestment: 1000,
+    maxInvestment: 1000, // 初始资金1000单位
     riskLevel: 'medium',
-    stopLoss: 5,
-    takeProfit: 10,
-    coins: ['BTC', 'ETH', 'SOL'],
+    stopLoss: 1.5, // 优化止损至1.5%
+    takeProfit: 3.0, // 优化止盈至3%
+    coins: ['BTC', 'ETH'], // 专注高流动性币种
+    tradingHours: {
+      start: '08:00', // UTC 8:00 (CST 15:00)
+      end: '20:00',   // UTC 20:00 (CST 3:00次日)
+      enabled: true,
+    },
+    technicalIndicators: {
+      rsi: {
+        period: 14,
+        overbought: 70,
+        oversold: 30,
+      },
+      ma: {
+        shortPeriod: 5,
+        longPeriod: 20,
+      },
+      bollingerBands: {
+        period: 20,
+        stdDev: 2,
+      },
+      atr: {
+        period: 14,
+        highVolatilityThreshold: 5, // 5% ATR阈值
+      },
+    },
     riskManagement: {
       maxDrawdown: 20,
-      diversificationLimit: 5,
+      diversificationLimit: 2, // 减少分散化，专注优质币种
       positionSizing: 'percentage',
+      maxRiskPerTrade: 1.0, // 每笔交易最大风险1%
+      minROIThreshold: 2.0, // 最小ROI阈值2%
     },
   });
 
@@ -84,6 +136,13 @@ export default function AutoTradePage() {
   const [recentTrades, setRecentTrades] = useState<Position[]>([]);
   const [apiConnected, setApiConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tradingLogs, setTradingLogs] = useState<string[]>([]);
+  const [marketConditions, setMarketConditions] = useState({
+    volatility: 'medium',
+    trend: 'neutral',
+    volume: 'normal',
+    lastUpdate: new Date().toISOString(),
+  });
 
   // Mock market prices
   const [marketPrices] = useState([
@@ -97,8 +156,12 @@ export default function AutoTradePage() {
   useEffect(() => {
     if (botRunning) {
       const interval = setInterval(() => {
-        simulateTrading();
-      }, 10000); // Simulate trading every 10 seconds
+        if (isWithinTradingHours()) {
+          analyzeMarketAndTrade();
+        } else {
+          logTradingActivity('交易时间外，机器人待机中');
+        }
+      }, 60000); // 每分钟评估1次交易机会
 
       return () => clearInterval(interval);
     }
