@@ -555,13 +555,7 @@ export default function AutoTradePage() {
         const fillPrice = price || marketPrices.find(p => p.coin === symbol.replace('USDT', ''))?.price || 45000;
         const filledOrder = {
           ...order,
-          status: 'filled'
-        }
-      }
-      )
-    }
-  }
-} as const,
+          status: 'filled' as const,
           fillPrice
         };
 
@@ -980,17 +974,24 @@ export default function AutoTradePage() {
                           </ul>
                         </div>
                       </div>
-                      <p className="text-sm text-slate-400">
-                        智能执行交易策略 {!isPageVisible && botActive && '(后台运行中)'}
-                      </p>
+                    </div>
 
                     <Button 
                       onClick={connectAPI}
                       disabled={loading || !apiCredentials.apiKey || !apiCredentials.apiSecret}
                       className="w-full bg-blue-600 hover:bg-blue-700"
                     >
-                      {botActive ? "🛑 停止机器人" : "▶️ 启动机器人"}
-                      {!isPageVisible && botActive && " (后台)"}
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          连接中...
+                        </>
+                      ) : (
+                        <>
+                          <Wifi className="w-4 h-4 mr-2" />
+                          连接API
+                        </>
+                      )}
                     </Button>
                   </>
                 ) : (
