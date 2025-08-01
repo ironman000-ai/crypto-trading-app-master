@@ -144,6 +144,30 @@ export default function AutoTradePage() {
     lastUpdate: new Date().toISOString(),
   });
 
+  // Check if current time is within trading hours
+  const isWithinTradingHours = () => {
+    if (!settings.tradingHours.enabled) return true;
+    
+    const now = new Date();
+    const currentUTCHour = now.getUTCHours();
+    const currentUTCMinute = now.getUTCMinutes();
+    const currentTimeInMinutes = currentUTCHour * 60 + currentUTCMinute;
+    
+    const [startHour, startMinute] = settings.tradingHours.start.split(':').map(Number);
+    const [endHour, endMinute] = settings.tradingHours.end.split(':').map(Number);
+    
+    const startTimeInMinutes = startHour * 60 + startMinute;
+    const endTimeInMinutes = endHour * 60 + endMinute;
+    
+    // Handle overnight trading hours (e.g., 20:00 to 08:00 next day)
+    if (startTimeInMinutes > endTimeInMinutes) {
+      return currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes <= endTimeInMinutes;
+    }
+    
+    // Normal trading hours (e.g., 08:00 to 20:00)
+    return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
+  };
+
   // Mock market prices
   const [marketPrices] = useState([
     { coin: 'BTC', price: 45000, change: 2.5 },
