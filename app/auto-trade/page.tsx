@@ -219,6 +219,7 @@ export default function AutoTradePage() {
     fetchMarketPrices();
     const interval = setInterval(fetchMarketPrices, 30000); // Update every 30 seconds
 
+      if (hftInterval) clearInterval(hftInterval);
     return () => clearInterval(interval);
   }, []);
 
@@ -532,9 +533,7 @@ export default function AutoTradePage() {
     }
 
     return { action, confidence: Math.round(confidence), signalStrength: Math.round(signalStrength), urgency };
-    const indicators = calculateTechnicalIndicators(coin);
-    const volatility = indicators.volatility || 5;
-    const tradeAmount = calculatePositionSize(currentBalance, volatility, confidence);
+  };
 
   const performRiskManagementCheck = (account: SimulationAccount, settings: BotSettings, marketPrice: MarketPrice) => {
     const totalValue = account.balance + account.positions.reduce((sum, pos) => sum + (pos.amount * pos.currentPrice), 0);
