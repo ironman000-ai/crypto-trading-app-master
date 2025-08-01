@@ -69,41 +69,53 @@ function generateFallbackChartData(coinId: string) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const path = searchParams.get('path');
-  const apiKey = process.env.COINGECKO_API_KEY || 'CG-vZ2exW2uZaJd9kRbV59SqBXj';
+  const apiKey = process.env.COINGECKO_API_KEY;
 
   if (!path) {
     return NextResponse.json({ error: 'Path is required' }, { status: 400 });
   }
 
   try {
-    const url = `https://api.coingecko.com/api/v3/${path}`;
+    const baseUrl = apiKey ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
+    const url = `${baseUrl}/${path}`;
     const params = new URLSearchParams(searchParams);
     params.delete('path'); // Remove our internal param
     
-    // Add API key to headers for Pro API
+    // Add API key to headers if available
     const headers: HeadersInit = {};
     if (apiKey) {
-      headers['x-cg-pro-api-key'] = apiKey;
+      headers['X-Cg-Pro-Api-Key'] = apiKey;
     }
     
     const queryString = params.toString();
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
-    const response = await fetch(fullUrl, { headers });
+    console.log('Fetching from:', fullUrl);
+    console.log('Headers:', headers);
+    
+    const response = await fetch(fullUrl, { 
+      headers,
+      method: 'GET'
+    });
 
     if (!response.ok) {
+      console.error('API Response Error:', response.status, response.statusText);
       // Handle rate limiting (429) and other API errors with fallback data
       if (response.status === 429) {
         console.warn('CoinGecko API rate limit exceeded, using fallback data');
         return handleFallbackResponse(path, searchParams);
       }
-      throw new Error(`CoinGecko API error: ${response.status}`);
+      if (response.status === 401) {
+        console.warn('CoinGecko API unauthorized, check API key');
+        return handleFallbackResponse(path, searchParams);
+      }
+      throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.warn('CoinGecko API error, using fallback data:', error);
+    console.error('CoinGecko API error, using fallback data:', error);
     return handleFallbackResponse(path, searchParams);
   }
 }
