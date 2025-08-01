@@ -103,12 +103,13 @@ export default function AIPredictionPage() {
       const timeframeData = timeframes.find(t => t.value === timeframe);
       const days = timeframeData?.days || 1;
 
-      // Fetch price data
+      // Fetch price data using Pro API
       const response = await axios.get('/api/coingecko', {
         params: {
           path: `coins/${coinData.id}/market_chart`,
           vs_currency: 'usd',
-          days: days
+          days: days,
+          interval: timeframe === '5m' || timeframe === '15m' || timeframe === '30m' ? 'minutely' : 'hourly'
         }
       });
 
@@ -153,7 +154,7 @@ export default function AIPredictionPage() {
 
       setMarketData(enhancedData);
     } catch (error) {
-      console.warn('Using fallback market data due to API limitations');
+      console.warn('CoinGecko API调用失败，使用备用数据:', error);
       generateFallbackMarketData();
     }
   };
@@ -240,11 +241,14 @@ export default function AIPredictionPage() {
       const coinData = coins.find(c => c.value === selectedCoin);
       if (!coinData) return;
       
+      // 使用Pro API获取更详细的市场数据
       const response = await axios.get('/api/coingecko', {
         params: {
           path: 'coins/markets',
           vs_currency: 'usd',
-          ids: coinData.id
+          ids: coinData.id,
+          include_24hr_change: true,
+          precision: 'full'
         }
       });
       
@@ -326,11 +330,11 @@ export default function AIPredictionPage() {
       
       setPrediction(enhancedPrediction);
     } catch (error) {
-      console.warn('Using fallback prediction data');
+      console.warn('CoinGecko API调用失败，使用备用预测数据:', error);
       
       // Enhanced fallback prediction with coin-specific data
       const basePrices: { [key: string]: number } = {
-        'BTC': 45000, 'ETH': 2800, 'BNB': 320, 'SOL': 95, 'XRP': 0.52,
+        'BTC': 97234, 'ETH': 3456, 'BNB': 678, 'SOL': 234, 'XRP': 2.34,
         'USDC': 1.00, 'ADA': 0.45, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
         'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
         'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,

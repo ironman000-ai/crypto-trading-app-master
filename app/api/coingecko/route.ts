@@ -69,7 +69,7 @@ function generateFallbackChartData(coinId: string) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const path = searchParams.get('path');
-  const apiKey = process.env.COINGECKO_API_KEY;
+  const apiKey = process.env.COINGECKO_API_KEY || 'CG-vZ2exW2uZaJd9kRbV59SqBXj';
 
   if (!path) {
     return NextResponse.json({ error: 'Path is required' }, { status: 400 });
@@ -79,13 +79,17 @@ export async function GET(request: NextRequest) {
     const url = `https://api.coingecko.com/api/v3/${path}`;
     const params = new URLSearchParams(searchParams);
     params.delete('path'); // Remove our internal param
+    
+    // Add API key to headers for Pro API
+    const headers: HeadersInit = {};
     if (apiKey) {
-      params.append('x_cg_demo_api_key', apiKey);
+      headers['x-cg-pro-api-key'] = apiKey;
     }
+    
     const queryString = params.toString();
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
-    const response = await fetch(fullUrl);
+    const response = await fetch(fullUrl, { headers });
 
     if (!response.ok) {
       // Handle rate limiting (429) and other API errors with fallback data

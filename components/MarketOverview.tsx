@@ -26,9 +26,9 @@ export function MarketOverview() {
       try {
         setLoading(true);
         
-        // 获取前6个热门加密货币的数据
+        // 获取前6个热门加密货币的数据 - 使用Pro API
         const response = await axios.get(
-          `/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false&price_change_percentage=24h`
+          `/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false&price_change_percentage=24h&precision=full`
         );
         
         // 转换 API 数据到我们的 CoinData 格式
@@ -45,15 +45,15 @@ export function MarketOverview() {
         
         setCoins(formattedData);
       } catch (error) {
-        console.error('获取加密货币数据失败:', error);
+        console.warn('CoinGecko API调用失败，使用备用数据:', error);
         // 如果 API 调用失败，使用模拟数据
         const fallbackData: CoinData[] = [
-          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 45000, change_24h: 1200, change_percent: 2.5, volume: 24000000000 },
-          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 2800, change_24h: -120, change_percent: -4.1, volume: 12000000000 },
-          { id: 'solana', symbol: 'SOL', name: 'Solana', price: 95, change_24h: 5, change_percent: 5.2, volume: 3000000000 },
-          { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', price: 0.08, change_24h: 0.004, change_percent: 5.0, volume: 1200000000 },
-          { id: 'cardano', symbol: 'ADA', name: 'Cardano', price: 0.45, change_24h: -0.02, change_percent: -4.2, volume: 800000000 },
-          { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', price: 6.5, change_24h: 0.3, change_percent: 4.8, volume: 600000000 },
+          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 97234.56, change_24h: 1856.78, change_percent: 1.95, volume: 28500000000 },
+          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 3456.89, change_24h: -89.45, change_percent: -2.52, volume: 15200000000 },
+          { id: 'binancecoin', symbol: 'BNB', name: 'BNB', price: 678.23, change_24h: 12.34, change_percent: 1.85, volume: 2100000000 },
+          { id: 'solana', symbol: 'SOL', name: 'Solana', price: 234.67, change_24h: 8.92, change_percent: 3.95, volume: 4200000000 },
+          { id: 'ripple', symbol: 'XRP', name: 'XRP', price: 2.34, change_24h: 0.12, change_percent: 5.41, volume: 8900000000 },
+          { id: 'cardano', symbol: 'ADA', name: 'Cardano', price: 1.23, change_24h: -0.05, change_percent: -3.89, volume: 1800000000 },
         ];
         setCoins(fallbackData);
       } finally {
@@ -62,8 +62,8 @@ export function MarketOverview() {
     };
 
     fetchCoinData();
-    // 每60秒更新一次数据（CoinGecko 免费 API 有速率限制）
-    const interval = setInterval(fetchCoinData, 60000);
+    // 每30秒更新一次数据（Pro API有更高的速率限制）
+    const interval = setInterval(fetchCoinData, 30000);
 
     return () => clearInterval(interval);
   }, []);
