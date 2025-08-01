@@ -1224,7 +1224,10 @@ export default function AutoTradePage() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>当前持仓</span>
-                  <Badge variant="secondary">
+                  <div className="text-center py-8 text-slate-400">
+                    <div className="animate-spin w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    正在加载市场数据...
+                  </div>
                     {tradingMode === 'live' ? realTimeAccount.positions.length : 0} 个持仓
                   </Badge>
                 </CardTitle>
@@ -1238,10 +1241,12 @@ export default function AutoTradePage() {
                           <Badge variant={position.side === 'long' ? 'default' : 'destructive'}>
                             {position.side === 'long' ? '多头' : '空头'}
                           </Badge>
-                          <div>
-                            <div className="font-semibold">{position.symbol}</div>
-                            <div className="text-sm text-slate-400">
-                              {position.size.toFixed(4)} @ ${position.entryPrice.toLocaleString()}
+                          ${coin.price >= 1000 ? 
+                            coin.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) :
+                            coin.price >= 1 ?
+                            coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) :
+                            coin.price.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })
+                          }
                             </div>
                           </div>
                         </div>
