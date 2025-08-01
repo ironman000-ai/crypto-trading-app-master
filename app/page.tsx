@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MarketOverview } from '@/components/MarketOverview';
 import { Navigation } from '@/components/Navigation';
-import { RealtimePriceList } from '@/components/RealtimePrice';
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);

@@ -10,8 +10,6 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ComposedChart, Bar } from 'recharts';
-import { RealtimeChart } from '@/components/RealtimeChart';
-import { RealtimePrice } from '@/components/RealtimePrice';
 
 interface PredictionResult {
   up_probability: number;

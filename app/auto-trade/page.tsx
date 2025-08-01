@@ -14,8 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { RealtimeChart } from '@/components/RealtimeChart';
-import { RealtimePriceList } from '@/components/RealtimePrice';
 
 interface TradingConfig {
   symbol: string;

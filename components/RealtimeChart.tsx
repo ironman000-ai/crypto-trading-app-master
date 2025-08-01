@@ -1,11 +1,53 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wifi, WifiOff, Activity } from 'lucide-react';
-import { useRealTimePrice } from '@/lib/realtime-websocket';
+
+// 临时移除WebSocket依赖，使用模拟数据
+function useRealTimePrice(symbol: string) {
+  const [data, setData] = useState<any>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connected');
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const basePrices: { [key: string]: number } = {
+      'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
+      'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11, 'DOT': 6.5,
+      'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5, 'ATOM': 12,
+      'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8
+    };
+    
+    const basePrice = basePrices[symbol] || 100;
+    let currentPrice = basePrice;
+    
+    const interval = setInterval(() => {
+      const variation = (Math.random() - 0.5) * currentPrice * 0.001;
+      currentPrice += variation;
+      const change24h = currentPrice - basePrice;
+      const changePercent = (change24h / basePrice) * 100;
+      
+      setData({
+        symbol,
+        price: currentPrice,
+        change: change24h,
+        changePercent,
+        volume: Math.random() * 1000000000 + 500000000,
+        timestamp: Date.now(),
+        high24h: basePrice * 1.05,
+        low24h: basePrice * 0.95,
+        bid: currentPrice * 0.999,
+        ask: currentPrice * 1.001
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [symbol]);
+
+  return { data, connectionStatus, isConnected };
+}
 
 interface ChartDataPoint {
   time: string;

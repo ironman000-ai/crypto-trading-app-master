@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface RealtimePrice {
   symbol: string;
   price: number;

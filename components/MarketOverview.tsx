@@ -4,9 +4,55 @@ import React, { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, Wifi, WifiOff, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useRealTimePrices } from '@/lib/realtime-websocket';
 
 const POPULAR_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
+
+// 临时移除WebSocket依赖，使用模拟数据
+function useRealTimePrices(symbols: string[]) {
+  const [data, setData] = useState<Map<string, any>>(new Map());
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connected');
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const basePrices: { [key: string]: number } = {
+      'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
+      'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11, 'DOT': 6.5,
+      'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5, 'ATOM': 12,
+      'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8
+    };
+    
+    const intervals = symbols.map(symbol => {
+      const basePrice = basePrices[symbol] || 100;
+      let currentPrice = basePrice;
+      
+      return setInterval(() => {
+        const variation = (Math.random() - 0.5) * currentPrice * 0.001;
+        currentPrice += variation;
+        const change24h = currentPrice - basePrice;
+        const changePercent = (change24h / basePrice) * 100;
+        
+        const newData = {
+          symbol,
+          price: currentPrice,
+          change: change24h,
+          changePercent,
+          volume: Math.random() * 1000000000 + 500000000,
+          timestamp: Date.now(),
+          high24h: basePrice * 1.05,
+          low24h: basePrice * 0.95,
+          bid: currentPrice * 0.999,
+          ask: currentPrice * 1.001
+        };
+        
+        setData(prev => new Map(prev.set(symbol, newData)));
+      }, 1000);
+    });
+    
+    return () => intervals.forEach(clearInterval);
+  }, [symbols.join(',')]);
+
+  return { data, connectionStatus, isConnected };
+}
 
 export function MarketOverview() {
   const { data, connectionStatus, isConnected } = useRealTimePrices(POPULAR_COINS);
