@@ -736,24 +736,24 @@ export default function AutoTradePage() {
                           </div>
                         ))}
                       </div>
-                    )}
-                  </CardContent>
+                      <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Activity className="w-8 h-8 text-blue-400 animate-pulse" />
                 </Card>
-
-                {/* Market Prices */}
+                      <h3 className="text-xl font-semibold mb-2">实时同步中</h3>
+                      <p className="text-slate-400 mb-6">正在同步账户数据...</p>
                 <Card className="glassmorphism">
                   <CardHeader>
                     <CardTitle>实时行情 & 技术指标</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {marketPrices.slice(0, 5).map((price) => (
+                              <div className="text-2xl font-bold text-blue-400">
                         <div key={price.coin} className="p-3 glassmorphism rounded-lg">
                           <div className="flex justify-between items-center mb-2">
                             <span className="font-medium">{price.coin}</span>
                             <div className="text-right">
                               <div className="text-sm font-bold">${price.price.toLocaleString()}</div>
-                              <div className={`text-xs ${price.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              <div className="text-2xl font-bold text-green-400">
                                 {price.change24h >= 0 ? '+' : ''}{price.change24h.toFixed(2)}%
                               </div>
                             </div>
@@ -957,15 +957,16 @@ export default function AutoTradePage() {
                     {botActive && (
                       <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                         <div className="flex items-center space-x-2 mb-2">
-                          <Activity className="w-4 h-4 text-green-400 animate-pulse" />
+                          <div className="glassmorphism p-4 rounded-lg">
+                            <div className="text-sm text-slate-400 mb-3">持仓概览</div>
+                            {liveAccount.positions.length > 0 ? (
                           <span className="text-green-400 font-medium">机器人运行中</span>
-                        </div>
                         <p className="text-sm text-slate-400">
                           正在监控市场信号，当满足条件时将自动执行交易
                         </p>
                       </div>
                     )}
-                  </CardContent>
+                                      {position.amount.toFixed(5)} @ ${position.entryPrice.toLocaleString()}
                 </Card>
 
                 {/* Trading Settings */}
@@ -973,15 +974,20 @@ export default function AutoTradePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Settings className="w-5 h-5" />
-                      <span>交易设置</span>
-                    </CardTitle>
+                            </div>
+                            ) : (
+                              <div className="text-center text-slate-500 py-4">
+                                暂无持仓
+                              </div>
+                            )}
+                          </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
                       <Label htmlFor="strategy">交易策略</Label>
                       <Select 
-                        value={settings.tradingStrategy} 
-                        onValueChange={(value: any) => setSettings({...settings, tradingStrategy: value})}
+                        variant="destructive" 
+                        className="w-full"
                       >
                         <SelectTrigger className="glassmorphism border-white/20 mt-1">
                           <SelectValue />
