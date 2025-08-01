@@ -399,7 +399,7 @@ export default function AutoTradePage() {
     generateMockLogs();
   }, [user]);
 
-  const handleStartBot = () => {
+  const connectAPI = async () => {
     if (!apiConnected) {
       toast.error('Please connect your exchange API first');
       return;
@@ -551,7 +551,7 @@ export default function AutoTradePage() {
 
   const calculatePositionSize = (currentBalance: number, volatility: number, confidence: number) => {
     const indicators = calculateTechnicalIndicators(coin);
-    const volatility = indicators.volatility || 5;
+    const effectiveVolatility = indicators.volatility || 5;
     const tradeAmount = calculatePositionSize(currentBalance, volatility, confidence);
   };
 
@@ -565,7 +565,7 @@ export default function AutoTradePage() {
       canBuy: currentDrawdown < settings.riskManagement.maxDrawdown &&
               positionCount < settings.riskManagement.diversificationLimit &&
               coinPositions === 0, // Prevent multiple positions in same coin
-      currentDrawdown,
+    const volatilityMultiplier = Math.max(0.5, Math.min(2.0, 10 / effectiveVolatility));
       positionCount,
       riskLevel: currentDrawdown > 10 ? 'high' : currentDrawdown > 5 ? 'medium' : 'low'
     };
