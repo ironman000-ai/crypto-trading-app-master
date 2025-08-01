@@ -126,13 +126,6 @@ export function MarketOverview() {
           const animation = priceAnimations.get(symbol);
           
           return (
-          <Card key={i} className="glassmorphism animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-slate-700 rounded mb-4"></div>
-              <div className="h-6 bg-slate-700 rounded mb-2"></div>
-              <div className="h-4 bg-slate-700 rounded w-2/3"></div>
-            </CardContent>
-          </Card>
             <Card key={symbol} className="glassmorphism trading-card-hover cursor-pointer relative overflow-hidden">
               {/* 币安实时数据指示器 */}
               <div className="absolute top-2 right-2 flex items-center space-x-1">
@@ -245,84 +238,4 @@ if (typeof document !== 'undefined') {
   const styleSheet = document.createElement('style');
   styleSheet.textContent = styles;
   document.head.appendChild(styleSheet);
-}
-            
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    {coin.image && (
-                      <img src={coin.image} alt={coin.name} className="w-6 h-6 mr-2" />
-                    )}
-                    <span className="text-2xl font-bold">{coin.symbol}</span>
-                    <span className="text-slate-400">{coin.name}</span>
-                  </div>
-                </div>
-                <div className={`flex items-center space-x-1 ${
-                  displayChangePercent >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {displayChangePercent >= 0 ? (
-                    <TrendingUp className="w-5 h-5" />
-                  ) : (
-                    <TrendingDown className="w-5 h-5" />
-                  )}
-                  <span className="font-semibold">
-                    {displayChangePercent >= 0 ? '+' : ''}{displayChangePercent.toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className={`text-3xl font-bold transition-all duration-200 ${
-                  realtime && realtime.price > coin.price ? 'text-green-400' :
-                  realtime && realtime.price < coin.price ? 'text-red-400' : ''
-                }`}>
-                  ${displayPrice.toLocaleString(undefined, { 
-                    minimumFractionDigits: Math.min(displayPrice >= 1 ? 2 : 4, displayPrice >= 1000 ? 0 : 4),
-                    maximumFractionDigits: displayPrice >= 1000 ? 0 : 4
-                  })}
-                </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">24h 变化:</span>
-                  <span className={displayChange >= 0 ? 'text-green-400' : 'text-red-400'}>
-                    {displayChange >= 0 ? '+' : ''}${Math.abs(displayChange).toFixed(2)}
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">24h 成交量:</span>
-                  <span className="text-slate-300">
-                    ${(displayVolume / 1000000).toFixed(1)}M
-                  </span>
-                </div>
-              </div>
-              
-              {/* 实时价格波动指示 */}
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span>实时波动</span>
-                  <span>{realtime ? new Date(realtime.timestamp).toLocaleTimeString('zh-CN') : '--:--:--'}</span>
-                </div>
-                <div className="h-8 flex items-end space-x-1">
-                  {[...Array(30)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-t ${
-                        displayChangePercent >= 0 ? 'bg-green-400/30' : 'bg-red-400/30'
-                      }`}
-                      style={{ 
-                        height: `${20 + Math.abs(displayChangePercent) * 10 + Math.random() * 60}%`,
-                        transition: 'height 0.1s ease'
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
 }
