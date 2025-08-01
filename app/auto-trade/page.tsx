@@ -69,6 +69,20 @@ interface Position {
   timestamp: string;
 }
 
+interface ApiCredentials {
+  apiKey: string;
+  secretKey: string;
+  exchange: 'binance' | 'coinbase' | 'okx';
+  testnet: boolean;
+}
+
+interface LiveAccountData {
+  totalBalance: number;
+  availableBalance: number;
+  positions: Position[];
+  lastUpdated: string;
+}
+
 interface MarketPrice {
   coin: string;
   price: number;
