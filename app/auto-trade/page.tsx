@@ -273,6 +273,39 @@ export default function AutoTradePage() {
       const accountInterval = setInterval(syncAccount, 8000);
       return () => clearInterval(accountInterval);
     }
+  }, [apiConnected, tradingMode, selectedExchange]);
+
+  // 生成模拟账户数据
+  const generateMockAccountData = (): RealTimeAccount => {
+    return {
+      totalBalance: 10000 + Math.random() * 5000,
+      availableBalance: 8000 + Math.random() * 2000,
+      positions: generateMockPositions(),
+      orders: generateMockOrders(),
+      lastUpdate: new Date().toISOString()
+    };
+  };
+
+  // 同步各交易所账户数据的函数
+  const syncHuobiAccount = async (): Promise<RealTimeAccount> => {
+    // 火币API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncBinanceAccount = async (): Promise<RealTimeAccount> => {
+    // Binance API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncOKXAccount = async (): Promise<RealTimeAccount> => {
+    // OKX API同步逻辑
+    return generateMockAccountData();
+  };
+
+  const syncCoinbaseAccount = async (): Promise<RealTimeAccount> => {
+    // Coinbase API同步逻辑
+    return generateMockAccountData();
+  };
 
   // 生成模拟持仓
   const generateMockPositions = (): RealTimePosition[] => {
@@ -357,20 +390,16 @@ export default function AutoTradePage() {
       
       setApiConnected(true);
       setApiStatus('connected');
-      toast.success(`成功连接到 ${exchanges.find(e => e.id === selectedExchange)?.name}`);
+      const exchangeName = exchanges.find(e => e.id === selectedExchange)?.name;
+      const exchangeIcon = exchanges.find(e => e.id === selectedExchange)?.icon;
+      toast.success(`${exchangeIcon} 成功连接到 ${exchangeName}`);
       
-      logTradingActivity(`API连接成功 - ${selectedExchange.toUpperCase()} ${apiCredentials.testnet ? '(测试网)' : '(主网)'}`);
+      logTradingActivity(`${exchangeIcon} API连接成功 - ${exchangeName} ${apiCredentials.testnet ? '(测试网)' : '(主网)'}`);
       
       // 初始账户同步
       if (tradingMode === 'live') {
-        const initialAccount = {
-          totalBalance: 15000,
-          availableBalance: 12000,
-          positions: generateMockPositions(),
-          orders: generateMockOrders(),
-          lastUpdate: new Date().toISOString()
-        };
-        setRealTimeAccount(initialAccount);
+        logTradingActivity(`${exchangeIcon} 开始初始账户同步...`);
+        // 初始同步将由useEffect处理
       }
       
     } catch (error) {
@@ -867,8 +896,6 @@ export default function AutoTradePage() {
                     {tradingMode === 'live' && (
                       <div className="text-xs text-slate-400 text-center">
                         最后同步: {new Date(realTimeAccount.lastUpdate).toLocaleString('zh-CN')}
-                        <br />
-                        <span className="text-green-400">● 实时同步中 (8秒间隔)</span>
                       </div>
                     )}
                   </div>
