@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          ...(process.env.COINGECKO_API_KEY && { 'x-cg-pro-api-key': process.env.COINGECKO_API_KEY }),
         }
       });
 
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          ...(process.env.COINGECKO_API_KEY && { 'x-cg-pro-api-key': process.env.COINGECKO_API_KEY }),
         }
       });
 
@@ -102,6 +104,7 @@ export async function GET(request: NextRequest) {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          ...(process.env.COINGECKO_API_KEY && { 'x-cg-pro-api-key': process.env.COINGECKO_API_KEY }),
         }
       });
 
@@ -127,6 +130,7 @@ export async function GET(request: NextRequest) {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          ...(process.env.COINGECKO_API_KEY && { 'x-cg-pro-api-key': process.env.COINGECKO_API_KEY }),
         }
       });
 
