@@ -33,6 +33,7 @@ export function Navigation() {
     { name: '首页', href: '/' },
     { name: 'AI预测', href: '/ai-prediction' },
     { name: '自动交易', href: '/auto-trade' },
+    { name: 'OKX交易', href: '/okx-trading' },
     { name: '交易记录', href: '/records' },
     { name: '方案价格', href: '/pricing' },
   ];
