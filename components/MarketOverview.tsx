@@ -1,63 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { TrendingUp, TrendingDown, Wifi, WifiOff, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { cryptoAPI, useRealTimeCryptoPrices, CryptoPrice } from '@/lib/crypto-api';
 
 const POPULAR_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
 
-// 临时移除WebSocket依赖，使用模拟数据
-function useRealTimePrices(symbols: string[]) {
-  const [data, setData] = useState<Map<string, any>>(new Map());
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connected');
-  const [isConnected, setIsConnected] = useState(true);
-
-  useEffect(() => {
-    const basePrices: { [key: string]: number } = {
-      'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
-      'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11, 'DOT': 6.5,
-      'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5, 'ATOM': 12,
-      'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8
-    };
-    
-    const intervals = symbols.map(symbol => {
-      const basePrice = basePrices[symbol] || 100;
-      let currentPrice = basePrice;
-      
-      return setInterval(() => {
-        const variation = (Math.random() - 0.5) * currentPrice * 0.001;
-        currentPrice += variation;
-        const change24h = currentPrice - basePrice;
-        const changePercent = (change24h / basePrice) * 100;
-        
-        const newData = {
-          symbol,
-          price: currentPrice,
-          change: change24h,
-          changePercent,
-          volume: Math.random() * 1000000000 + 500000000,
-          timestamp: Date.now(),
-          high24h: basePrice * 1.05,
-          low24h: basePrice * 0.95,
-          bid: currentPrice * 0.999,
-          ask: currentPrice * 1.001
-        };
-        
-        setData(prev => new Map(prev.set(symbol, newData)));
-      }, 1000);
-    });
-    
-    return () => intervals.forEach(clearInterval);
-  }, [symbols.join(',')]);
-
-  return { data, connectionStatus, isConnected };
-}
-
 export function MarketOverview() {
-  const { data, connectionStatus, isConnected } = useRealTimePrices(POPULAR_COINS);
+  const { data, loading, error } = useRealTimeCryptoPrices(POPULAR_COINS);
   const [priceAnimations, setPriceAnimations] = useState<Map<string, 'up' | 'down' | null>>(new Map());
   const [lastPrices, setLastPrices] = useState<Map<string, number>>(new Map());
+  const [marketOverview, setMarketOverview] = useState<any>(null);
 
   // 币种名称映射
   const coinNames: { [key: string]: string } = {
@@ -68,6 +23,18 @@ export function MarketOverview() {
     'XRP': 'XRP',
     'ADA': 'Cardano'
   };
+
+  // 获取市场概览数据
+  useEffect(() => {
+    const fetchMarketOverview = async () => {
+      const overview = await cryptoAPI.getMarketOverview();
+      setMarketOverview(overview);
+    };
+
+    fetchMarketOverview();
+    const interval = setInterval(fetchMarketOverview, 60000); // 每分钟更新
+    return () => clearInterval(interval);
+  }, []);
 
   // 处理价格变化动画
   React.useEffect(() => {
@@ -100,15 +67,37 @@ export function MarketOverview() {
     return volume.toFixed(0);
   };
 
-  if (data.size === 0) {
+  if (loading) {
     return (
       <div>
         <div className="flex items-center justify-center mb-6">
           <div className="flex items-center space-x-2">
-            <WifiOff className="w-5 h-5 text-red-400" />
-            <span className="text-red-400">正在连接币安WebSocket...</span>
+            <Activity className="w-5 h-5 text-blue-400 animate-spin" />
+            <span className="text-blue-400">正在获取实时数据...</span>
           </div>
         </div>
+        {marketOverview && (
+          <div className="mb-6 p-4 glassmorphism rounded-lg">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-lg font-bold text-blue-400">${(marketOverview.totalMarketCap / 1e12).toFixed(2)}T</div>
+                <div className="text-sm text-slate-400">总市值</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-green-400">${(marketOverview.totalVolume24h / 1e9).toFixed(1)}B</div>
+                <div className="text-sm text-slate-400">24h成交量</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-yellow-400">{marketOverview.btcDominance.toFixed(1)}%</div>
+                <div className="text-sm text-slate-400">BTC占比</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-purple-400">{marketOverview.activeCoins.toLocaleString()}</div>
+                <div className="text-sm text-slate-400">活跃币种</div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {POPULAR_COINS.map((symbol, i) => (
             <Card key={i} className="glassmorphism animate-pulse">
@@ -124,31 +113,63 @@ export function MarketOverview() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <WifiOff className="w-16 h-16 text-red-400 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-red-400 mb-2">数据获取失败</h3>
+        <p className="text-slate-400 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          重新加载
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-center mb-6">
         <div className="flex items-center space-x-4">
-          {isConnected ? (
-            <>
-              <div className="flex items-center space-x-2">
-                <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
-                <Badge variant="default" className="bg-green-600">
-                  <Activity className="w-3 h-3 mr-1" />
-                  币安实时数据流
-                </Badge>
-              </div>
-              <span className="text-sm text-green-400">
-                {data.size} 个币种实时更新
-              </span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="w-5 h-5 text-red-400" />
-              <Badge variant="destructive">{connectionStatus}</Badge>
-            </>
-          )}
+          <div className="flex items-center space-x-2">
+            <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
+            <Badge variant="default" className="bg-green-600">
+              <Activity className="w-3 h-3 mr-1" />
+              CoinGecko + 币安实时数据
+            </Badge>
+          </div>
+          <span className="text-sm text-green-400">
+            {data.size} 个币种实时更新 (30秒刷新)
+          </span>
         </div>
       </div>
+      
+      {/* 市场概览 */}
+      {marketOverview && (
+        <div className="mb-8 p-6 glassmorphism rounded-lg">
+          <h3 className="text-xl font-semibold mb-4 text-center">全球加密货币市场概览</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-2xl font-bold text-blue-400 mb-1">${(marketOverview.totalMarketCap / 1e12).toFixed(2)}T</div>
+              <div className="text-sm text-slate-400">总市值</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-green-400 mb-1">${(marketOverview.totalVolume24h / 1e9).toFixed(1)}B</div>
+              <div className="text-sm text-slate-400">24h成交量</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">{marketOverview.btcDominance.toFixed(1)}%</div>
+              <div className="text-sm text-slate-400">BTC市场占比</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-purple-400 mb-1">{marketOverview.activeCoins.toLocaleString()}</div>
+              <div className="text-sm text-slate-400">活跃币种数量</div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {POPULAR_COINS.map((symbol) => {
@@ -173,10 +194,10 @@ export function MarketOverview() {
           
           return (
             <Card key={symbol} className="glassmorphism trading-card-hover cursor-pointer relative overflow-hidden">
-              {/* 币安实时数据指示器 */}
+              {/* 实时数据指示器 */}
               <div className="absolute top-2 right-2 flex items-center space-x-1">
                 <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
-                <span className="text-xs text-green-400">币安</span>
+                <span className="text-xs text-green-400">实时</span>
               </div>
               
               <CardContent className="p-6">
@@ -188,15 +209,15 @@ export function MarketOverview() {
                     </div>
                   </div>
                   <div className={`flex items-center space-x-1 ${
-                    coinData.changePercent >= 0 ? 'text-green-400' : 'text-red-400'
+                    coinData.changePercent24h >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {coinData.changePercent >= 0 ? (
+                    {coinData.changePercent24h >= 0 ? (
                       <TrendingUp className="w-5 h-5" />
                     ) : (
                       <TrendingDown className="w-5 h-5" />
                     )}
                     <span className="font-semibold">
-                      {coinData.changePercent >= 0 ? '+' : ''}{coinData.changePercent.toFixed(2)}%
+                      {coinData.changePercent24h >= 0 ? '+' : ''}{coinData.changePercent24h.toFixed(2)}%
                     </span>
                   </div>
                 </div>
@@ -212,51 +233,50 @@ export function MarketOverview() {
                   
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">24h 变化:</span>
-                    <span className={coinData.change >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {coinData.change >= 0 ? '+' : ''}${Math.abs(coinData.change).toFixed(4)}
+                    <span className={coinData.change24h >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {coinData.change24h >= 0 ? '+' : ''}${Math.abs(coinData.change24h).toFixed(4)}
                     </span>
                   </div>
                   
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">24h 成交量:</span>
                     <span className="text-slate-300">
-                      {formatVolume(coinData.volume)}
+                      {formatVolume(coinData.volume24h)}
                     </span>
                   </div>
                   
+                  {coinData.marketCap > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">市值:</span>
+                      <span className="text-slate-300">
+                        {formatVolume(coinData.marketCap)}
+                      </span>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">买价/卖价:</span>
+                    <span className="text-slate-400">24h 高/低:</span>
                     <span className="text-slate-300">
-                      <span className="text-green-400">${formatPrice(coinData.bid)}</span>
+                      <span className="text-green-400">${formatPrice(coinData.high24h)}</span>
                       <span className="mx-1">/</span>
-                      <span className="text-red-400">${formatPrice(coinData.ask)}</span>
+                      <span className="text-red-400">${formatPrice(coinData.low24h)}</span>
                     </span>
                   </div>
                 </div>
                 
-                {/* 实时价格波动指示 */}
+                {/* 数据来源和更新时间 */}
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                    <span>币安实时数据</span>
+                    <span>CoinGecko + 币安数据</span>
                     <span>{new Date(coinData.timestamp).toLocaleTimeString('zh-CN', {
                       hour12: false,
                       hour: '2-digit',
                       minute: '2-digit',
-                      second: '2-digit'
+                      second: '2-digit',
                     })}</span>
                   </div>
-                  <div className="h-8 flex items-end space-x-1">
-                    {[...Array(30)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`flex-1 rounded-t transition-all duration-100 ${
-                          coinData.changePercent >= 0 ? 'bg-green-400/30' : 'bg-red-400/30'
-                        }`}
-                        style={{ 
-                          height: `${20 + Math.abs(coinData.changePercent) * 10 + Math.random() * 60}%`
-                        }}
-                      />
-                    ))}
+                  <div className="text-xs text-center text-slate-500">
+                    数据每30秒自动更新
                   </div>
                 </div>
               </CardContent>

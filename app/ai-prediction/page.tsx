@@ -93,34 +93,6 @@ export default function AIPredictionPage() {
   useEffect(() => {
     fetchMarketData();
     generateHistoricalAccuracy();
-    
-    // 启动实时价格更新
-    const basePrices: { [key: string]: number } = {
-      'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
-      'USDC': 1.00, 'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
-      'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
-      'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,
-    };
-    
-    const basePrice = basePrices[selectedCoin] || 100;
-    let currentPrice = basePrice;
-    
-    const realtimeInterval = setInterval(() => {
-      const variation = (Math.random() - 0.5) * currentPrice * 0.001;
-      currentPrice += variation;
-      const change24h = currentPrice - basePrice;
-      const changePercent = (change24h / basePrice) * 100;
-      
-      setRealtimePrice({
-        price: currentPrice,
-        change: change24h,
-        changePercent,
-        volume: Math.random() * 1000000000 + 500000000,
-        timestamp: Date.now()
-      });
-    }, 100);
-    
-    return () => clearInterval(realtimeInterval);
   }, [selectedCoin, timeframe]);
 
   const fetchMarketData = async () => {
@@ -355,7 +327,7 @@ export default function AIPredictionPage() {
       
       setPrediction(enhancedPrediction);
     } catch (error) {
-      console.warn('CoinGecko API调用失败，使用备用预测数据:', error);
+      console.warn('API调用失败，使用备用预测数据:', error);
       
       // Enhanced fallback prediction with coin-specific data
       const basePrices: { [key: string]: number } = {
@@ -559,19 +531,7 @@ export default function AIPredictionPage() {
             </Card>
             
             {/* 实时价格显示 */}
-            {realtimePrice && (
-              <Card className="glassmorphism">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Activity className="w-5 h-5 text-green-400 animate-pulse" />
-                    <span>实时价格流</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RealtimePrice {...realtimePrice} symbol={selectedCoin} />
-                </CardContent>
-              </Card>
-            )}
+            <RealtimePrice symbol={selectedCoin} showVolume={true} showBidAsk={true} />
           </div>
 
           {/* Main Analysis Panel */}
@@ -579,9 +539,9 @@ export default function AIPredictionPage() {
             {/* 实时图表 */}
             <RealtimeChart 
               symbol={selectedCoin} 
-              title={`${selectedCoin} 毫秒级实时走势`}
+              title={`${selectedCoin} 实时价格走势`}
               height={400}
-              maxDataPoints={200}
+              maxDataPoints={100}
             />
             
             {/* Enhanced Charts */}

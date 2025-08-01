@@ -5,57 +5,13 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, Area
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wifi, WifiOff, Activity } from 'lucide-react';
-
-// 临时移除WebSocket依赖，使用模拟数据
-function useRealTimePrice(symbol: string) {
-  const [data, setData] = useState<any>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connected');
-  const [isConnected, setIsConnected] = useState(true);
-
-  useEffect(() => {
-    const basePrices: { [key: string]: number } = {
-      'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
-      'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11, 'DOT': 6.5,
-      'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5, 'ATOM': 12,
-      'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8
-    };
-    
-    const basePrice = basePrices[symbol] || 100;
-    let currentPrice = basePrice;
-    
-    const interval = setInterval(() => {
-      const variation = (Math.random() - 0.5) * currentPrice * 0.001;
-      currentPrice += variation;
-      const change24h = currentPrice - basePrice;
-      const changePercent = (change24h / basePrice) * 100;
-      
-      setData({
-        symbol,
-        price: currentPrice,
-        change: change24h,
-        changePercent,
-        volume: Math.random() * 1000000000 + 500000000,
-        timestamp: Date.now(),
-        high24h: basePrice * 1.05,
-        low24h: basePrice * 0.95,
-        bid: currentPrice * 0.999,
-        ask: currentPrice * 1.001
-      });
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [symbol]);
-
-  return { data, connectionStatus, isConnected };
-}
+import { cryptoAPI, CryptoHistoricalData } from '@/lib/crypto-api';
 
 interface ChartDataPoint {
   time: string;
   price: number;
   volume: number;
   timestamp: number;
-  bid: number;
-  ask: number;
 }
 
 interface RealtimeChartProps {
@@ -73,14 +29,58 @@ export function RealtimeChart({
   maxDataPoints = 200,
   showVolume = false
 }: RealtimeChartProps) {
-  const { data, connectionStatus, isConnected } = useRealTimePrice(symbol);
   const [chartData, setChartData] = React.useState<ChartDataPoint[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [priceStats, setPriceStats] = React.useState({
     min: 0,
     max: 0,
     avg: 0,
     volatility: 0
   });
+
+  // 获取历史数据
+  React.useEffect(() => {
+    const fetchHistoricalData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const historicalData = await cryptoAPI.getHistoricalData(symbol, 1); // 获取1天的数据
+        
+        if (historicalData.length > 0) {
+          const formattedData: ChartDataPoint[] = historicalData.map(point => ({
+            time: new Date(point.timestamp).toLocaleTimeString('zh-CN', { 
+              hour12: false,
+              hour: '2-digit', 
+              minute: '2-digit'
+            }),
+            price: point.price,
+            volume: point.volume,
+            timestamp: point.timestamp,
+          }));
+          
+          setChartData(formattedData.slice(-maxDataPoints));
+          
+          // 计算统计数据
+          const prices = formattedData.map(d => d.price);
+          const min = Math.min(...prices);
+          const max = Math.max(...prices);
+          const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+          const variance = prices.reduce((sum, p) => sum + Math.pow(p - avg, 2), 0) / prices.length;
+          const volatility = Math.sqrt(variance) / avg * 100;
+          
+          setPriceStats({ min, max, avg, volatility });
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取数据失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [symbol, maxDataPoints]);
 
   React.useEffect(() => {
     if (data) {
@@ -94,8 +94,6 @@ export function RealtimeChart({
         price: data.price,
         volume: data.volume,
         timestamp: data.timestamp,
-        bid: data.bid,
-        ask: data.ask
       };
 
       setChartData(prev => {
@@ -122,7 +120,7 @@ export function RealtimeChart({
         return newData;
       });
     }
-  }, [data, maxDataPoints]);
+  }, [maxDataPoints]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000) return `$${price.toFixed(2)}`;
@@ -131,7 +129,7 @@ export function RealtimeChart({
     return `$${price.toFixed(8)}`;
   };
 
-  const currentPrice = data?.price || 0;
+  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : 0;
   const priceChange = chartData.length > 1 ? currentPrice - chartData[0].price : 0;
   const priceChangePercent = chartData.length > 1 ? (priceChange / chartData[0].price) * 100 : 0;
 
@@ -140,20 +138,20 @@ export function RealtimeChart({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span>{title || `${symbol} 币安实时价格`}</span>
-            {isConnected ? (
+            <span>{title || `${symbol} 历史价格走势`}</span>
+            {!loading && !error ? (
               <div className="flex items-center space-x-1">
                 <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
                 <Badge variant="default" className="bg-green-600">
                   <Activity className="w-3 h-3 mr-1" />
-                  实时连接
+                  CoinGecko数据
                 </Badge>
               </div>
             ) : (
               <div className="flex items-center space-x-1">
-                <WifiOff className="w-4 h-4 text-red-400" />
+                <Activity className="w-4 h-4 text-blue-400 animate-spin" />
                 <Badge variant="destructive">
-                  {connectionStatus}
+                  {loading ? '加载中' : '数据错误'}
                 </Badge>
               </div>
             )}
@@ -167,6 +165,34 @@ export function RealtimeChart({
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {loading && (
+          <div className="flex items-center justify-center" style={{ height }}>
+            <div className="text-center">
+              <Activity className="w-8 h-8 mx-auto mb-2 text-blue-400 animate-spin" />
+              <p className="text-slate-400">正在加载历史数据...</p>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="flex items-center justify-center" style={{ height }}>
+            <div className="text-center">
+              <WifiOff className="w-8 h-8 mx-auto mb-2 text-red-400" />
+              <p className="text-red-400">{error}</p>
+            </div>
+          </div>
+        )}
+        
+        {!loading && !error && chartData.length === 0 && (
+          <div className="flex items-center justify-center" style={{ height }}>
+            <div className="text-center">
+              <Activity className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+              <p className="text-slate-400">暂无数据</p>
+            </div>
+          </div>
+        )}
+        
+        {!loading && !error && chartData.length > 0 && (
         <div style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             {showVolume ? (
@@ -229,8 +255,6 @@ export function RealtimeChart({
                   labelFormatter={(label) => `时间: ${label}`}
                   formatter={(value: number, name: string) => {
                     if (name === 'price') return [formatPrice(value), '价格'];
-                    if (name === 'bid') return [formatPrice(value), '买价'];
-                    if (name === 'ask') return [formatPrice(value), '卖价'];
                     return [value, name];
                   }}
                 />
@@ -242,33 +266,16 @@ export function RealtimeChart({
                   dot={false}
                   isAnimationActive={false}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="bid"
-                  stroke="#10b981"
-                  strokeWidth={1}
-                  dot={false}
-                  strokeDasharray="3 3"
-                  isAnimationActive={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="ask"
-                  stroke="#ef4444"
-                  strokeWidth={1}
-                  dot={false}
-                  strokeDasharray="3 3"
-                  isAnimationActive={false}
-                />
               </LineChart>
             )}
           </ResponsiveContainer>
         </div>
+        )}
         
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="text-center">
             <div className="text-slate-400">数据点</div>
-            <div className="font-medium text-blue-400">{chartData.length}/{maxDataPoints}</div>
+            <div className="font-medium text-blue-400">{chartData.length}</div>
           </div>
           <div className="text-center">
             <div className="text-slate-400">波动率</div>
@@ -284,11 +291,11 @@ export function RealtimeChart({
           </div>
         </div>
 
-        {isConnected && (
+        {!loading && !error && (
           <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-            <span>🔗 币安WebSocket实时数据流</span>
-            <span>📊 毫秒级更新频率</span>
-            <span>⚡ {data ? `延迟: ${Date.now() - data.timestamp}ms` : '等待数据'}</span>
+            <span>📊 CoinGecko历史数据</span>
+            <span>🔄 每小时更新</span>
+            <span>📈 {chartData.length > 0 ? `${chartData.length}个数据点` : '无数据'}</span>
           </div>
         )}
       </CardContent>

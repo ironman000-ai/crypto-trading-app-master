@@ -449,46 +449,14 @@ export default function AutoTradePage() {
     if (botRunning) {
       addLog(`交易机器人启动 - ${tradingMode === 'live' ? '实盘模式' : '模拟模式'}`);
       
-      // 启动毫秒级实时数据流
-      const basePrices: { [key: string]: number } = {
-        'BTC/USDT': 43250,
-        'ETH/USDT': 2678,
-        'SOL/USDT': 67,
-        'ADA/USDT': 0.35,
-      };
-      
-      const basePrice = basePrices[config.symbol] || 100;
-      let currentPrice = basePrice;
-      
-      const realtimeInterval = setInterval(() => {
-        const variation = (Math.random() - 0.5) * currentPrice * 0.001;
-        currentPrice += variation;
-        const change24h = currentPrice - basePrice;
-        const changePercent = (change24h / basePrice) * 100;
-        
-        setRealtimeData({
-          price: currentPrice,
-          change: change24h,
-          changePercent,
-          volume: Math.random() * 1000000000 + 500000000,
-          timestamp: Date.now(),
-          rsi: 50 + Math.random() * 40,
-          macd: (Math.random() - 0.5) * 10,
-          signal: Math.random() > 0.7 ? 'buy' : Math.random() < 0.3 ? 'sell' : 'hold',
-          confidence: 70 + Math.random() * 25
-        });
-      }, 100);
-      
       // 立即进行一次市场分析
       fetchMarketAnalysis();
       
-      // 设置市场分析定时器 (每30秒分析一次，基于实时数据)
-      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 300000); // 5分钟
+      // 设置市场分析定时器 (每5分钟分析一次)
+      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 300000);
       
       // 设置交易决策定时器 (每1分钟检查一次交易机会)
       tradingIntervalRef.current = setInterval(runTradingBot, 60000);
-      
-      return () => clearInterval(realtimeInterval);
     } else {
       if (analysisIntervalRef.current) {
         clearInterval(analysisIntervalRef.current);
@@ -744,11 +712,11 @@ export default function AutoTradePage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">更新频率:</span>
-                        <span className="font-medium text-green-400">100ms</span>
+                        <span className="font-medium text-green-400">30秒</span>
                       </div>
-                      {(realtimeData?.timestamp || lastAnalysisTime) && (
+                      {lastAnalysisTime && (
                         <div className="text-xs text-slate-500 mt-2">
-                          最后更新: {realtimeData ? new Date(realtimeData.timestamp).toLocaleTimeString('zh-CN') : lastAnalysisTime?.toLocaleTimeString('zh-CN')}
+                          最后更新: {lastAnalysisTime.toLocaleTimeString('zh-CN')}
                         </div>
                       )}
                     </div>
@@ -763,7 +731,7 @@ export default function AutoTradePage() {
             {/* 实时价格图表 */}
             <RealtimeChart 
               symbol={config.symbol.replace('/USDT', '')} 
-              title={`${config.symbol} 毫秒级交易数据`}
+              title={`${config.symbol} 实时交易数据`}
               height={300}
               maxDataPoints={100}
             />
@@ -819,8 +787,8 @@ export default function AutoTradePage() {
                     <div className="h-full flex items-center justify-center">
                       <div className="text-center">
                         <Activity className="w-16 h-16 mx-auto mb-4 text-green-400 animate-pulse" />
-                        <p className="text-green-400">实时数据流已启动</p>
-                        <p className="text-sm text-slate-400">100毫秒更新频率</p>
+                        <p className="text-green-400">AI交易机器人运行中</p>
+                        <p className="text-sm text-slate-400">30秒数据更新频率</p>
                       </div>
                     </div>
                   ) : (
@@ -828,7 +796,7 @@ export default function AutoTradePage() {
                       <div className="text-center">
                         <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
                         <p>启动机器人开始实时数据流</p>
-                        <p className="text-sm">毫秒级性能监控</p>
+                        <p className="text-sm">实时性能监控</p>
                       </div>
                     </div>
                   )}
@@ -895,9 +863,9 @@ export default function AutoTradePage() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Activity className="w-5 h-5 text-blue-400 animate-pulse" />
-                    <span>毫秒级交易日志</span>
+                    <span>AI交易日志</span>
                     <Badge variant="secondary">{tradingMode === 'live' ? '实盘' : '模拟'}</Badge>
-                    <Badge variant="outline" className="text-xs">100ms更新</Badge>
+                    <Badge variant="outline" className="text-xs">实时更新</Badge>
                   </div>
                   <Button variant="outline" size="sm" onClick={clearLogs}>
                     清空日志
@@ -908,7 +876,7 @@ export default function AutoTradePage() {
                 <div className="h-64 overflow-y-auto space-y-2">
                   {tradingLogs.length === 0 ? (
                     <div className="text-center py-8 text-slate-400">
-                      等待毫秒级AI分析和交易信号...
+                      等待AI分析和交易信号...
                     </div>
                   ) : (
                     tradingLogs.map((log, index) => (
