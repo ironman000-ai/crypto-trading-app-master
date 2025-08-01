@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bot, Play, Square, Settings, TrendingUp, TrendingDown, Activity, AlertTriangle, DollarSign, Target, Zap, Shield, Key, Globe, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -226,6 +226,26 @@ export default function AutoTradePage() {
       breakout: { period: '1h', breakout_threshold: 3 }
     }
   });
+
+  // 格式化价格显示
+  const formatPrice = (price: number) => {
+    if (price >= 1000) {
+      return price.toLocaleString(undefined, { 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    } else if (price >= 1) {
+      return price.toLocaleString(undefined, { 
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 3
+      });
+    } else {
+      return price.toLocaleString(undefined, { 
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 6
+      });
+    }
+  };
 
   // 实时数据更新
   useEffect(() => {
@@ -740,7 +760,7 @@ export default function AutoTradePage() {
             <h2 className="text-2xl font-bold mb-4">需要登录</h2>
             <p className="text-slate-400 mb-6">请先登录以使用自动交易功能</p>
             <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              最后更新: {new Date().toLocaleTimeString('zh-CN')} • 每20秒自动更新 • 更新次数: {dataUpdateCount}
+              <a href="/auth/login">立即登录</a>
             </Button>
           </CardContent>
         </Card>
@@ -1063,7 +1083,10 @@ export default function AutoTradePage() {
                   </div>
                 )}
               </CardContent>
-                    ${formatPrice(coin.price)}
+            </Card>
+
+            {/* 交易策略 */}
+            <Card className="glassmorphism">
               <CardHeader>
                 <CardTitle>交易策略</CardTitle>
               </CardHeader>
