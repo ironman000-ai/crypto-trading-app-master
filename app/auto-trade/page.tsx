@@ -566,9 +566,9 @@ export default function AutoTradePage() {
     const confidenceMultiplier = confidence;
 
     return {
-              positionCount < settings.riskManagement.diversificationLimit &&
+      canBuy: positionCount < settings.riskManagement.diversificationLimit &&
               coinPositions === 0, // Prevent multiple positions in same coin
-      positionCount,
+      currentPositionCount: positionCount,
       riskLevel: currentDrawdown > 10 ? 'high' : currentDrawdown > 5 ? 'medium' : 'low'
     };
   };
