@@ -250,18 +250,18 @@ class CryptoAPIManager {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.COINGECKO_BASE_URL}/global`, {
+      const response = await fetch('/api/crypto?endpoint=global', {
         headers: {
           'Accept': 'application/json',
         }
       });
 
       if (!response.ok) {
-        throw new Error(`CoinGecko API错误: ${response.status}`);
+        throw new Error(`API错误: ${response.status}`);
       }
 
       const data = await response.json();
-      const globalData = data.data;
+      const globalData = data.data || data;
 
       const overview = {
         totalMarketCap: globalData.total_market_cap?.usd || 0,
