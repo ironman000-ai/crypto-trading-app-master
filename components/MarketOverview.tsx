@@ -77,7 +77,7 @@ export function MarketOverview() {
       </div>
     );
   }
-
+if (data.size === 0) {
   return (
     <div>
       <div className="flex items-center justify-center mb-6">

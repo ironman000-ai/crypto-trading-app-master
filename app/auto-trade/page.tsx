@@ -485,7 +485,7 @@ export default function AutoTradePage() {
       fetchMarketAnalysis();
       
       // 设置市场分析定时器 (每30秒分析一次，基于实时数据)
-      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 30000);
+      analysisIntervalRef.current = setInterval(fetchMarketAnalysis, 300000); // 5分钟
       
       // 设置交易决策定时器 (每1分钟检查一次交易机会)
       tradingIntervalRef.current = setInterval(runTradingBot, 60000);
