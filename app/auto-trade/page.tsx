@@ -164,9 +164,7 @@ export default function AutoTradePage() {
     { value: 'AVAX', label: 'Avalanche (AVAX)', id: 'avalanche-2' },
     { value: 'DOGE', label: 'Dogecoin (DOGE)', id: 'dogecoin' },
     { value: 'DOT', label: 'Polkadot (DOT)', id: 'polkadot' },
-    { value: 'grid', label: '网格交易' },
-    { value: 'hft_scalping', label: '高频剥头皮' },
-    { value: 'arbitrage', label: '套利交易' }
+    { value: 'MATIC', label: 'Polygon (MATIC)', id: 'matic-network' },
   ];
 
   // Fetch real-time market prices
@@ -425,6 +423,11 @@ export default function AutoTradePage() {
     setSimulationBotActive(false);
     toast.success('模拟交易机器人已停止');
   };
+
+  const handleConnectAPI = async () => {
+    try {
+      toast.loading('正在连接API...');
+      
       // Real API connection simulation with proper data fetching
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -438,6 +441,16 @@ export default function AutoTradePage() {
       startRealTimeSync();
       
       toast.success(`API连接成功！余额: $${accountData.totalBalance.toLocaleString()}`);
+    } catch (error) {
+      toast.error('API连接失败，请检查您的凭据');
+    }
+  };
+
+  const resetSimulationAccount = () => {
+    setSimulationAccount({
+      balance: 10000,
+      initialBalance: 10000,
+      totalProfit: 0,
       totalLoss: 0,
       positions: [],
     });
@@ -576,6 +589,7 @@ export default function AutoTradePage() {
       signalStrength: calculateSignalStrength(calculateRSI(data.price, data.change24h), calculateMACD(data.price, data.change24h), data.change24h),
     }));
   };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 flex items-center justify-center">
@@ -738,24 +752,24 @@ export default function AutoTradePage() {
                           </div>
                         ))}
                       </div>
-                      <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Activity className="w-8 h-8 text-blue-400 animate-pulse" />
+                    )}
+                  </CardContent>
                 </Card>
-                      <h3 className="text-xl font-semibold mb-2">实时同步中</h3>
-                      <p className="text-slate-400 mb-6">正在同步账户数据...</p>
+
+                {/* Market Data */}
                 <Card className="glassmorphism">
                   <CardHeader>
                     <CardTitle>实时行情 & 技术指标</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                              <div className="text-2xl font-bold text-blue-400">
+                      {marketPrices.slice(0, 5).map((price) => (
                         <div key={price.coin} className="p-3 glassmorphism rounded-lg">
                           <div className="flex justify-between items-center mb-2">
                             <span className="font-medium">{price.coin}</span>
                             <div className="text-right">
                               <div className="text-sm font-bold">${price.price.toLocaleString()}</div>
-                              <div className="text-2xl font-bold text-green-400">
+                              <div className={`text-xs ${price.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {price.change24h >= 0 ? '+' : ''}{price.change24h.toFixed(2)}%
                               </div>
                             </div>
@@ -959,16 +973,15 @@ export default function AutoTradePage() {
                     {botActive && (
                       <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                         <div className="flex items-center space-x-2 mb-2">
-                          <div className="glassmorphism p-4 rounded-lg">
-                            <div className="text-sm text-slate-400 mb-3">持仓概览</div>
-                            {liveAccount.positions.length > 0 ? (
+                          <Activity className="w-4 h-4 text-green-400 animate-pulse" />
                           <span className="text-green-400 font-medium">机器人运行中</span>
+                        </div>
                         <p className="text-sm text-slate-400">
                           正在监控市场信号，当满足条件时将自动执行交易
                         </p>
                       </div>
                     )}
-                                      {position.amount.toFixed(5)} @ ${position.entryPrice.toLocaleString()}
+                  </CardContent>
                 </Card>
 
                 {/* Trading Settings */}
@@ -976,20 +989,15 @@ export default function AutoTradePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Settings className="w-5 h-5" />
-                            </div>
-                            ) : (
-                              <div className="text-center text-slate-500 py-4">
-                                暂无持仓
-                              </div>
-                            )}
-                          </div>
+                      <span>交易设置</span>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
                       <Label htmlFor="strategy">交易策略</Label>
                       <Select 
-                        variant="destructive" 
-                        className="w-full"
+                        value={settings.tradingStrategy}
+                        onValueChange={(value: any) => setSettings({...settings, tradingStrategy: value})}
                       >
                         <SelectTrigger className="glassmorphism border-white/20 mt-1">
                           <SelectValue />
