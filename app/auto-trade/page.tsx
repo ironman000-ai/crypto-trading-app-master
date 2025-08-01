@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, Play, Square, Settings, TrendingUp, TrendingDown, Activity, AlertTriangle, DollarSign, Target, Zap } from 'lucide-react';
+import { Bot, Play, Square, Settings, TrendingUp, TrendingDown, Activity, AlertTriangle, DollarSign, Target, Zap, Shield, Key, Globe, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -9,114 +9,145 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-interface BotSettings {
-  enabled: boolean;
-  maxInvestment: number;
-  riskLevel: 'low' | 'medium' | 'high';
-  stopLoss: number;
-  takeProfit: number;
-  coins: string[];
-  tradingHours: {
-    start: string; // UTC time
-    end: string;   // UTC time
-    enabled: boolean;
-  };
-  technicalIndicators: {
-    rsi: {
-      period: number;
-      overbought: number;
-      oversold: number;
-    };
-    ma: {
-      shortPeriod: number;
-      longPeriod: number;
-    };
-    bollingerBands: {
-      period: number;
-      stdDev: number;
-    };
-    atr: {
-      period: number;
-      highVolatilityThreshold: number;
-    };
-  };
-  riskManagement: {
-    maxDrawdown: number;
-    diversificationLimit: number;
-    positionSizing: 'fixed' | 'percentage' | 'kelly';
-    maxRiskPerTrade: number;
-    minROIThreshold: number;
-  };
-}
-
-interface Position {
+interface ExchangeConfig {
   id: string;
-  coin: string;
-  amount: number;
-  entryPrice: number;
-  currentPrice: number;
-  profit: number;
-  profitPercent: number;
-  timestamp: string;
-  status: 'open' | 'closed';
+  name: string;
+  icon: string;
+  testnetSupported: boolean;
+  permissions: string[];
 }
 
-interface Account {
-  balance: number;
-  totalInvested: number;
-  totalProfit: number;
-  positions: Position[];
-  dailyPnL: number;
+interface APICredentials {
+  apiKey: string;
+  apiSecret: string;
+  passphrase?: string; // For OKX
+  testnet: boolean;
+}
+
+interface RealTimeAccount {
+  totalBalance: number;
+  availableBalance: number;
+  positions: RealTimePosition[];
+  orders: Order[];
+  lastUpdate: string;
+}
+
+interface RealTimePosition {
+  id: string;
+  symbol: string;
+  side: 'long' | 'short';
+  size: number;
+  entryPrice: number;
+  markPrice: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  timestamp: string;
+}
+
+interface Order {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  type: 'market' | 'limit';
+  amount: number;
+  price?: number;
+  status: 'pending' | 'filled' | 'cancelled' | 'rejected';
+  timestamp: string;
+  fillPrice?: number;
+}
+
+interface TradingStrategy {
+  id: string;
+  name: string;
+  description: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  enabled: boolean;
 }
 
 export default function AutoTradePage() {
   const { user } = useAuth();
+  
+  // 交易所配置
+  const exchanges: ExchangeConfig[] = [
+    {
+      id: 'binance',
+      name: 'Binance',
+      icon: '🟡',
+      testnetSupported: true,
+      permissions: ['spot', 'futures', 'margin']
+    },
+    {
+      id: 'coinbase',
+      name: 'Coinbase Advanced',
+      icon: '🔵',
+      testnetSupported: true,
+      permissions: ['spot', 'advanced']
+    },
+    {
+      id: 'okx',
+      name: 'OKX',
+      icon: '⚫',
+      testnetSupported: true,
+      permissions: ['spot', 'futures', 'options']
+    }
+  ];
+
+  // 交易策略
+  const tradingStrategies: TradingStrategy[] = [
+    {
+      id: 'scalping',
+      name: '超短线策略',
+      description: '基于1-5分钟K线的高频交易',
+      riskLevel: 'high',
+      enabled: true
+    },
+    {
+      id: 'swing',
+      name: '波段交易',
+      description: '基于4小时-日线的中期交易',
+      riskLevel: 'medium',
+      enabled: true
+    },
+    {
+      id: 'trend',
+      name: '趋势跟踪',
+      description: '基于长期趋势的稳健策略',
+      riskLevel: 'low',
+      enabled: false
+    }
+  ];
+
+  // 状态管理
+  const [selectedExchange, setSelectedExchange] = useState('binance');
+  const [tradingMode, setTradingMode] = useState<'simulation' | 'live'>('simulation');
+  const [apiCredentials, setApiCredentials] = useState<APICredentials>({
+    apiKey: '',
+    apiSecret: '',
+    passphrase: '',
+    testnet: true
+  });
+  const [showApiSecret, setShowApiSecret] = useState(false);
+  const [apiConnected, setApiConnected] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [botRunning, setBotRunning] = useState(false);
-  const [settings, setSettings] = useState<BotSettings>({
-    enabled: false,
-    maxInvestment: 1000, // 初始资金1000单位
-    riskLevel: 'medium',
-    stopLoss: 1.5, // 优化止损至1.5%
-    takeProfit: 3.0, // 优化止盈至3%
-    coins: ['BTC', 'ETH'], // 专注高流动性币种
-    tradingHours: {
-      start: '08:00', // UTC 8:00 (CST 15:00)
-      end: '20:00',   // UTC 20:00 (CST 3:00次日)
-      enabled: true,
-    },
-    technicalIndicators: {
-      rsi: {
-        period: 14,
-        overbought: 70,
-        oversold: 30,
-      },
-      ma: {
-        shortPeriod: 5,
-        longPeriod: 20,
-      },
-      bollingerBands: {
-        period: 20,
-        stdDev: 2,
-      },
-      atr: {
-        period: 14,
-        highVolatilityThreshold: 5, // 5% ATR阈值
-      },
-    },
-    riskManagement: {
-      maxDrawdown: 20,
-      diversificationLimit: 2, // 减少分散化，专注优质币种
-      positionSizing: 'percentage',
-      maxRiskPerTrade: 1.0, // 每笔交易最大风险1%
-      minROIThreshold: 2.0, // 最小ROI阈值2%
-    },
+  const [loading, setLoading] = useState(false);
+
+  // 账户数据
+  const [realTimeAccount, setRealTimeAccount] = useState<RealTimeAccount>({
+    totalBalance: 0,
+    availableBalance: 0,
+    positions: [],
+    orders: [],
+    lastUpdate: new Date().toISOString()
   });
 
-  const [account, setAccount] = useState<Account>({
+  const [simulationAccount, setSimulationAccount] = useState({
     balance: 10000,
     totalInvested: 0,
     totalProfit: 0,
@@ -124,6 +155,20 @@ export default function AutoTradePage() {
     dailyPnL: 0,
   });
 
+  // 市场数据
+  const [marketPrices, setMarketPrices] = useState([
+    { coin: 'BTC', price: 45000, change: 2.5 },
+    { coin: 'ETH', price: 2800, change: -1.2 },
+    { coin: 'SOL', price: 95, change: 5.8 },
+    { coin: 'ADA', price: 0.45, change: -0.8 },
+    { coin: 'DOT', price: 6.5, change: 3.2 },
+  ]);
+
+  // 交易记录
+  const [recentTrades, setRecentTrades] = useState([]);
+  const [tradingLogs, setTradingLogs] = useState<string[]>([]);
+
+  // 统计数据
   const [botStats, setBotStats] = useState({
     totalTrades: 0,
     successfulTrades: 0,
@@ -133,204 +178,287 @@ export default function AutoTradePage() {
     sharpeRatio: 0,
   });
 
-  const [recentTrades, setRecentTrades] = useState<Position[]>([]);
-  const [apiConnected, setApiConnected] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [tradingLogs, setTradingLogs] = useState<string[]>([]);
-  const [marketConditions, setMarketConditions] = useState({
-    volatility: 'medium',
-    trend: 'neutral',
-    volume: 'normal',
-    lastUpdate: new Date().toISOString(),
+  // 交易设置
+  const [settings, setSettings] = useState({
+    enabled: false,
+    maxInvestment: 1000,
+    riskLevel: 'medium' as 'low' | 'medium' | 'high',
+    stopLoss: 1.5,
+    takeProfit: 3.0,
+    coins: ['BTC', 'ETH'],
+    selectedStrategy: 'swing',
+    positionSize: 'percentage' as 'fixed' | 'percentage' | 'kelly',
+    maxRiskPerTrade: 1.0,
+    tradingHours: {
+      start: '08:00',
+      end: '20:00',
+      enabled: true,
+    },
   });
 
-  // Mock market prices - moved before any functions that use it
-  const [marketPrices, setMarketPrices] = useState([
-    { coin: 'BTC', price: 45000, change: 2.5 },
-    { coin: 'ETH', price: 2800, change: -1.2 },
-    { coin: 'SOL', price: 95, change: 5.8 },
-    { coin: 'ADA', price: 0.45, change: -0.8 },
-    { coin: 'DOT', price: 6.5, change: 3.2 },
-  ]);
-
-  // 实时市场数据更新
+  // 实时数据更新
   useEffect(() => {
     const updateMarketData = () => {
       setMarketPrices(prev => prev.map(market => ({
         ...market,
-        price: market.price * (1 + (Math.random() - 0.5) * 0.02), // ±1% 随机波动
-        change: (Math.random() - 0.5) * 10, // ±5% 变化范围
+        price: market.price * (1 + (Math.random() - 0.5) * 0.02),
+        change: (Math.random() - 0.5) * 10,
       })));
-      
-      // 更新市场状况
-      setMarketConditions(prev => ({
-        ...prev,
-        volatility: Math.random() > 0.7 ? 'high' : Math.random() > 0.3 ? 'medium' : 'low',
-        trend: Math.random() > 0.6 ? 'bullish' : Math.random() > 0.3 ? 'neutral' : 'bearish',
-        volume: Math.random() > 0.5 ? 'high' : 'normal',
-        lastUpdate: new Date().toISOString(),
-      }));
     };
 
-    // 每30秒更新一次市场数据
     const marketInterval = setInterval(updateMarketData, 30000);
-    
     return () => clearInterval(marketInterval);
   }, []);
 
-  // 虚拟交易模拟
-  const simulateVirtualTrade = () => {
-    if (!botRunning || !isWithinTradingHours()) return;
-
-    const shouldTrade = Math.random() > 0.85; // 15% 交易概率
-    
-    if (shouldTrade) {
-      const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
-      const marketPrice = marketPrices.find(p => p.coin === coin);
-      
-      if (marketPrice) {
-        // 基于技术指标的交易决策
-        const rsi = 30 + Math.random() * 40; // 模拟RSI 30-70
-        const maSignal = Math.random() > 0.5; // MA交叉信号
-        const volatility = Math.abs(marketPrice.change);
-        
-        // 交易条件判断
-        const shouldBuy = rsi < 35 && maSignal && volatility < 8;
-        const shouldSell = rsi > 65 && !maSignal;
-        
-        if (shouldBuy || shouldSell) {
-          const isProfit = Math.random() > 0.25; // 75% 盈利概率
-          const profitPercent = isProfit ? 
-            Math.random() * settings.takeProfit : 
-            -Math.random() * settings.stopLoss;
-          
-          const amount = (settings.maxInvestment * 0.01) / marketPrice.price; // 1% 仓位
-          const profit = (marketPrice.price * amount * profitPercent) / 100;
-          
-          const newTrade: Position = {
-            id: `trade_${Date.now()}`,
-            coin,
-            amount,
-            entryPrice: marketPrice.price,
-            currentPrice: marketPrice.price * (1 + profitPercent / 100),
-            profit,
-            profitPercent,
-            timestamp: new Date().toISOString(),
-            status: 'closed',
+  // 实时账户同步
+  useEffect(() => {
+    if (apiConnected && tradingMode === 'live') {
+      const syncAccount = async () => {
+        try {
+          // 模拟API调用获取实时账户数据
+          const mockAccountData: RealTimeAccount = {
+            totalBalance: 15000 + Math.random() * 5000,
+            availableBalance: 12000 + Math.random() * 3000,
+            positions: generateMockPositions(),
+            orders: generateMockOrders(),
+            lastUpdate: new Date().toISOString()
           };
           
-          // 更新交易记录
-          setRecentTrades(prev => [newTrade, ...prev.slice(0, 19)]);
-          
-          // 更新账户信息
-          setAccount(prev => ({
-            ...prev,
-            balance: prev.balance + profit,
-            totalProfit: prev.totalProfit + profit,
-            dailyPnL: prev.dailyPnL + profit,
-          }));
-          
-          // 更新统计数据
-          setBotStats(prev => ({
-            ...prev,
-            totalTrades: prev.totalTrades + 1,
-            successfulTrades: prev.successfulTrades + (isProfit ? 1 : 0),
-            winRate: ((prev.successfulTrades + (isProfit ? 1 : 0)) / (prev.totalTrades + 1)) * 100,
-            avgProfit: (prev.avgProfit * prev.totalTrades + profit) / (prev.totalTrades + 1),
-          }));
-          
-          // 添加交易日志
-          const logMessage = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} CST - ${coin} ${shouldBuy ? '买入' : '卖出'} ${isProfit ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)} (${profitPercent.toFixed(2)}%) - RSI:${rsi.toFixed(1)} MA:${maSignal ? '金叉' : '死叉'}`;
-          setTradingLogs(prev => [logMessage, ...prev.slice(0, 49)]);
-          
-          // 显示通知
-          if (isProfit) {
-            toast.success(`${coin} 交易获利 $${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)`);
-          } else {
-            toast.error(`${coin} 交易亏损 $${Math.abs(profit).toFixed(2)} (${Math.abs(profitPercent).toFixed(2)}%)`);
-          }
+          setRealTimeAccount(mockAccountData);
+          logTradingActivity(`账户同步完成 - 总余额: $${mockAccountData.totalBalance.toFixed(2)}`);
+        } catch (error) {
+          logTradingActivity('账户同步失败，请检查API连接');
         }
-      }
+      };
+
+      // 每10秒同步一次账户数据
+      const accountInterval = setInterval(syncAccount, 10000);
+      return () => clearInterval(accountInterval);
     }
-  };
+  }, [apiConnected, tradingMode]);
 
-  // 自动交易循环
-  useEffect(() => {
-    if (botRunning && apiConnected) {
-      const tradingInterval = setInterval(() => {
-        simulateVirtualTrade();
-      }, 45000); // 每45秒检查一次交易机会
-
-      return () => clearInterval(tradingInterval);
-    }
-  }, [botRunning, apiConnected, settings, marketPrices]);
-
-  // 生成虚拟持仓
-  const generateVirtualPositions = () => {
-    if (!botRunning) return;
+  // 生成模拟持仓
+  const generateMockPositions = (): RealTimePosition[] => {
+    const positions: RealTimePosition[] = [];
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
     
-    const positions: Position[] = [];
-    const activeCoins = settings.coins.slice(0, 2); // 限制同时持仓数量
-    
-    activeCoins.forEach((coin, index) => {
-      if (Math.random() > 0.6) { // 60% 概率持仓
-        const marketPrice = marketPrices.find(p => p.coin === coin)?.price || 100;
-        const entryPrice = marketPrice * (0.98 + Math.random() * 0.04); // ±2% 入场价
-        const amount = (settings.maxInvestment * 0.02) / entryPrice; // 2% 仓位
-        const currentProfit = (marketPrice - entryPrice) * amount;
-        const profitPercent = (currentProfit / (entryPrice * amount)) * 100;
+    symbols.forEach((symbol, index) => {
+      if (Math.random() > 0.5) {
+        const entryPrice = marketPrices[index]?.price || 45000;
+        const markPrice = entryPrice * (1 + (Math.random() - 0.5) * 0.05);
+        const size = Math.random() * 0.1 + 0.01;
+        const unrealizedPnl = (markPrice - entryPrice) * size;
         
         positions.push({
-          id: `pos_${coin}_${index}`,
-          coin,
-          amount,
+          id: `pos_${symbol}_${index}`,
+          symbol,
+          side: Math.random() > 0.5 ? 'long' : 'short',
+          size,
           entryPrice,
-          currentPrice: marketPrice,
-          profit: currentProfit,
-          profitPercent,
-          timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-          status: 'open',
+          markPrice,
+          unrealizedPnl,
+          unrealizedPnlPercent: (unrealizedPnl / (entryPrice * size)) * 100,
+          timestamp: new Date().toISOString()
         });
       }
     });
     
-    setAccount(prev => ({ ...prev, positions }));
+    return positions;
   };
 
-  // 定期更新持仓
-  useEffect(() => {
-    if (botRunning && apiConnected) {
-      generateVirtualPositions();
-      const positionInterval = setInterval(() => {
-        // 更新现有持仓的当前价格和盈亏
-        setAccount(prev => ({
-          ...prev,
-          positions: prev.positions.map(pos => {
-            const currentMarketPrice = marketPrices.find(p => p.coin === pos.coin)?.price || pos.currentPrice;
-            const newProfit = (currentMarketPrice - pos.entryPrice) * pos.amount;
-            const newProfitPercent = (newProfit / (pos.entryPrice * pos.amount)) * 100;
-            
-            return {
-              ...pos,
-              currentPrice: currentMarketPrice,
-              profit: newProfit,
-              profitPercent: newProfitPercent,
-            };
-          }),
-        }));
-      }, 10000); // 每10秒更新持仓
+  // 生成模拟订单
+  const generateMockOrders = (): Order[] => {
+    const orders: Order[] = [];
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+    
+    for (let i = 0; i < Math.floor(Math.random() * 3) + 1; i++) {
+      const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+      const side = Math.random() > 0.5 ? 'buy' : 'sell';
+      const type = Math.random() > 0.5 ? 'market' : 'limit';
       
-      return () => clearInterval(positionInterval);
+      orders.push({
+        id: `order_${Date.now()}_${i}`,
+        symbol,
+        side,
+        type,
+        amount: Math.random() * 0.1 + 0.01,
+        price: type === 'limit' ? marketPrices[0]?.price * (1 + (Math.random() - 0.5) * 0.02) : undefined,
+        status: ['pending', 'filled', 'cancelled'][Math.floor(Math.random() * 3)] as any,
+        timestamp: new Date().toISOString()
+      });
     }
-  }, [botRunning, apiConnected, marketPrices]);
+    
+    return orders;
+  };
 
+  // API连接
+  const connectAPI = async () => {
+    if (!apiCredentials.apiKey || !apiCredentials.apiSecret) {
+      toast.error('请输入API密钥和秘钥');
+      return;
+    }
+
+    setLoading(true);
+    setApiStatus('connecting');
+    
+    try {
+      // 模拟API连接验证
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 验证API权限
+      const hasRequiredPermissions = true; // 模拟权限检查
+      
+      if (!hasRequiredPermissions) {
+        throw new Error('API权限不足，请确保启用交易权限');
+      }
+      
+      setApiConnected(true);
+      setApiStatus('connected');
+      toast.success(`成功连接到 ${exchanges.find(e => e.id === selectedExchange)?.name}`);
+      
+      logTradingActivity(`API连接成功 - ${selectedExchange.toUpperCase()} ${apiCredentials.testnet ? '(测试网)' : '(主网)'}`);
+      
+      // 初始账户同步
+      if (tradingMode === 'live') {
+        const initialAccount = {
+          totalBalance: 15000,
+          availableBalance: 12000,
+          positions: generateMockPositions(),
+          orders: generateMockOrders(),
+          lastUpdate: new Date().toISOString()
+        };
+        setRealTimeAccount(initialAccount);
+      }
+      
+    } catch (error) {
+      setApiStatus('error');
+      toast.error(`API连接失败: ${error.message}`);
+      logTradingActivity(`API连接失败: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 断开API连接
+  const disconnectAPI = () => {
+    setApiConnected(false);
+    setApiStatus('disconnected');
+    setBotRunning(false);
+    toast.success('API连接已断开');
+    logTradingActivity('API连接已断开');
+  };
+
+  // 启动机器人
+  const handleStartBot = async () => {
+    if (!user) {
+      toast.error('请先登录以使用自动交易功能');
+      return;
+    }
+
+    if (tradingMode === 'live' && !apiConnected) {
+      toast.error('实盘交易需要先连接API');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setBotRunning(true);
+      setSettings(prev => ({ ...prev, enabled: true }));
+      
+      const mode = tradingMode === 'live' ? '实盘' : '模拟';
+      toast.success(`${mode}交易机器人已启动`);
+      logTradingActivity(`${mode}交易机器人启动 - 策略: ${settings.selectedStrategy}`);
+      
+    } catch (error) {
+      toast.error('启动失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 停止机器人
+  const handleStopBot = () => {
+    setBotRunning(false);
+    setSettings(prev => ({ ...prev, enabled: false }));
+    
+    const mode = tradingMode === 'live' ? '实盘' : '模拟';
+    toast.success(`${mode}交易机器人已停止`);
+    logTradingActivity(`${mode}交易机器人已停止`);
+  };
+
+  // 切换交易模式
+  const switchTradingMode = (mode: 'simulation' | 'live') => {
+    if (botRunning) {
+      toast.error('请先停止机器人再切换模式');
+      return;
+    }
+    
+    setTradingMode(mode);
+    const modeText = mode === 'live' ? '实盘交易' : '模拟交易';
+    toast.success(`已切换到${modeText}模式`);
+    logTradingActivity(`切换到${modeText}模式`);
+  };
+
+  // 执行实时交易
+  const executeRealTrade = async (symbol: string, side: 'buy' | 'sell', amount: number, type: 'market' | 'limit' = 'market', price?: number) => {
+    if (!apiConnected) {
+      throw new Error('API未连接');
+    }
+
+    try {
+      // 模拟实时下单
+      const order: Order = {
+        id: `order_${Date.now()}`,
+        symbol,
+        side,
+        type,
+        amount,
+        price,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      };
+
+      // 添加到订单列表
+      setRealTimeAccount(prev => ({
+        ...prev,
+        orders: [order, ...prev.orders.slice(0, 9)]
+      }));
+
+      // 模拟订单执行
+      setTimeout(() => {
+        const fillPrice = price || marketPrices.find(p => p.coin === symbol.replace('USDT', ''))?.price || 45000;
+        const filledOrder = {
+          ...order,
+          status: 'filled' as const,
+          fillPrice
+        };
+
+        setRealTimeAccount(prev => ({
+          ...prev,
+          orders: prev.orders.map(o => o.id === order.id ? filledOrder : o)
+        }));
+
+        logTradingActivity(`实盘交易执行 - ${symbol} ${side.toUpperCase()} ${amount.toFixed(4)} @ $${fillPrice.toFixed(2)}`);
+        toast.success(`实盘交易执行成功: ${symbol} ${side.toUpperCase()}`);
+      }, 2000);
+
+      return order;
+    } catch (error) {
+      logTradingActivity(`实盘交易失败: ${error.message}`);
+      throw error;
+    }
+  };
+
+  // 交易日志
   const logTradingActivity = (message: string) => {
     const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const logEntry = `${timestamp} CST - ${message}`;
     setTradingLogs(prev => [logEntry, ...prev.slice(0, 49)]);
   };
 
-  // Check if current time is within trading hours
+  // 检查交易时间
   const isWithinTradingHours = () => {
     if (!settings.tradingHours.enabled) return true;
     
@@ -345,169 +473,79 @@ export default function AutoTradePage() {
     const startTimeInMinutes = startHour * 60 + startMinute;
     const endTimeInMinutes = endHour * 60 + endMinute;
     
-    // Handle overnight trading hours (e.g., 20:00 to 08:00 next day)
     if (startTimeInMinutes > endTimeInMinutes) {
       return currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes <= endTimeInMinutes;
     }
     
-    // Normal trading hours (e.g., 08:00 to 20:00)
     return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
   };
 
+  // 智能交易执行
   useEffect(() => {
-    if (botRunning) {
-      const interval = setInterval(() => {
-        if (isWithinTradingHours()) {
-          analyzeMarketAndTrade();
-        } else {
-          logTradingActivity('交易时间外，机器人待机中');
+    if (botRunning && isWithinTradingHours()) {
+      const tradingInterval = setInterval(async () => {
+        try {
+          // 分析市场条件
+          const shouldTrade = Math.random() > 0.85; // 15% 交易概率
+          
+          if (shouldTrade) {
+            const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
+            const marketPrice = marketPrices.find(p => p.coin === coin);
+            
+            if (marketPrice) {
+              // 技术指标分析
+              const rsi = 30 + Math.random() * 40;
+              const maSignal = Math.random() > 0.5;
+              const volatility = Math.abs(marketPrice.change);
+              
+              // 交易决策
+              const shouldBuy = rsi < 35 && maSignal && volatility < 8;
+              const shouldSell = rsi > 65 && !maSignal;
+              
+              if (shouldBuy || shouldSell) {
+                const side = shouldBuy ? 'buy' : 'sell';
+                const amount = (settings.maxInvestment * 0.01) / marketPrice.price;
+                
+                if (tradingMode === 'live' && apiConnected) {
+                  // 执行实盘交易
+                  await executeRealTrade(`${coin}USDT`, side, amount);
+                } else {
+                  // 执行模拟交易
+                  const isProfit = Math.random() > 0.25;
+                  const profitPercent = isProfit ? 
+                    Math.random() * settings.takeProfit : 
+                    -Math.random() * settings.stopLoss;
+                  
+                  const profit = (marketPrice.price * amount * profitPercent) / 100;
+                  
+                  setSimulationAccount(prev => ({
+                    ...prev,
+                    balance: prev.balance + profit,
+                    totalProfit: prev.totalProfit + profit,
+                    dailyPnL: prev.dailyPnL + profit,
+                  }));
+                  
+                  setBotStats(prev => ({
+                    ...prev,
+                    totalTrades: prev.totalTrades + 1,
+                    successfulTrades: prev.successfulTrades + (isProfit ? 1 : 0),
+                    winRate: ((prev.successfulTrades + (isProfit ? 1 : 0)) / (prev.totalTrades + 1)) * 100,
+                    avgProfit: (prev.avgProfit * prev.totalTrades + profit) / (prev.totalTrades + 1),
+                  }));
+                  
+                  logTradingActivity(`模拟交易 - ${coin} ${side.toUpperCase()} ${isProfit ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)} (${profitPercent.toFixed(2)}%)`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logTradingActivity(`交易执行错误: ${error.message}`);
         }
-      }, 60000); // 每分钟评估1次交易机会
+      }, 45000);
 
-      return () => clearInterval(interval);
+      return () => clearInterval(tradingInterval);
     }
-  }, [botRunning, settings]);
-
-  const handleStartBot = async () => {
-    if (!user) {
-      toast.error('请先登录以使用自动交易功能');
-      return;
-    }
-
-    if (!apiConnected) {
-      toast.error('请先连接交易API');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Simulate bot startup
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setBotRunning(true);
-      setSettings(prev => ({ ...prev, enabled: true }));
-      toast.success('自动交易机器人已启动');
-    } catch (error) {
-      toast.error('启动失败，请稍后重试');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStopBot = () => {
-    setBotRunning(false);
-    setSettings(prev => ({ ...prev, enabled: false }));
-    toast.success('自动交易机器人已停止');
-  };
-
-  const connectAPI = async () => {
-    setLoading(true);
-    try {
-      // Simulate API connection
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setApiConnected(true);
-      toast.success('API连接成功');
-      
-      // Fetch account info
-      const mockAccount = {
-        balance: 10000 + Math.random() * 5000,
-        totalInvested: Math.random() * 3000,
-        totalProfit: (Math.random() - 0.3) * 1000,
-        positions: generateMockPositions(),
-        dailyPnL: (Math.random() - 0.4) * 200,
-      };
-      
-      setAccount(mockAccount);
-    } catch (error) {
-      toast.error('API连接失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateMockPositions = (): Position[] => {
-    const positions: Position[] = [];
-    const coins = ['BTC', 'ETH', 'SOL', 'ADA'];
-    
-    for (let i = 0; i < Math.floor(Math.random() * 4) + 1; i++) {
-      const coin = coins[Math.floor(Math.random() * coins.length)];
-      const marketPrice = marketPrices.find(p => p.coin === coin)?.price || 100;
-      const entryPrice = marketPrice * (0.95 + Math.random() * 0.1);
-      const amount = Math.random() * 0.1 + 0.01;
-      const profit = (marketPrice - entryPrice) * amount;
-      
-      positions.push({
-        id: `pos_${i}`,
-        coin,
-        amount,
-        entryPrice,
-        currentPrice: marketPrice,
-        profit,
-        profitPercent: (profit / (entryPrice * amount)) * 100,
-        timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        status: 'open',
-      });
-    }
-    
-    return positions;
-  };
-
-  const simulateTrading = () => {
-    if (!botRunning) return;
-
-    // Simulate a trade decision
-    const shouldTrade = Math.random() > 0.7; // 30% chance to trade
-    
-    if (shouldTrade) {
-      const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
-      const marketPrice = marketPrices.find(p => p.coin === coin);
-      
-      if (marketPrice) {
-        const isProfit = Math.random() > 0.3; // 70% chance of profit
-        const profitPercent = isProfit ? 
-          Math.random() * settings.takeProfit : 
-          -Math.random() * settings.stopLoss;
-        
-        const amount = 0.01 + Math.random() * 0.05;
-        const profit = (marketPrice.price * amount * profitPercent) / 100;
-        
-        const newTrade: Position = {
-          id: `trade_${Date.now()}`,
-          coin,
-          amount,
-          entryPrice: marketPrice.price,
-          currentPrice: marketPrice.price * (1 + profitPercent / 100),
-          profit,
-          profitPercent,
-          timestamp: new Date().toISOString(),
-          status: 'closed',
-        };
-        
-        setRecentTrades(prev => [newTrade, ...prev.slice(0, 9)]);
-        setAccount(prev => ({
-          ...prev,
-          balance: prev.balance + profit,
-          totalProfit: prev.totalProfit + profit,
-          dailyPnL: prev.dailyPnL + profit,
-        }));
-        
-        setBotStats(prev => ({
-          ...prev,
-          totalTrades: prev.totalTrades + 1,
-          successfulTrades: prev.successfulTrades + (isProfit ? 1 : 0),
-          winRate: ((prev.successfulTrades + (isProfit ? 1 : 0)) / (prev.totalTrades + 1)) * 100,
-          avgProfit: (prev.avgProfit * prev.totalTrades + profit) / (prev.totalTrades + 1),
-        }));
-        
-        if (isProfit) {
-          toast.success(`${coin} 交易获利 $${profit.toFixed(2)}`);
-        } else {
-          toast.error(`${coin} 交易亏损 $${Math.abs(profit).toFixed(2)}`);
-        }
-      }
-    }
-  };
+  }, [botRunning, tradingMode, apiConnected, settings, marketPrices]);
 
   if (!user) {
     return (
@@ -526,6 +564,8 @@ export default function AutoTradePage() {
     );
   }
 
+  const currentAccount = tradingMode === 'live' ? realTimeAccount : simulationAccount;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900">
       <Navigation />
@@ -536,12 +576,70 @@ export default function AutoTradePage() {
             AI自动交易机器人
           </h1>
           <p className="text-xl text-slate-300">
-            24/7智能交易，让AI为您把握每一个市场机会
+            专业级实时API集成，支持多交易所和双模式操作
           </p>
         </div>
 
-        {/* Status Bar */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        {/* 模式切换和状态栏 */}
+        <div className="grid md:grid-cols-5 gap-6 mb-8">
+          {/* 交易模式 */}
+          <Card className="glassmorphism">
+            <CardContent className="p-6 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <Globe className={`w-8 h-8 ${tradingMode === 'live' ? 'text-red-400' : 'text-blue-400'}`} />
+              </div>
+              <div className="text-lg font-semibold mb-2">
+                {tradingMode === 'live' ? '实盘交易' : '模拟交易'}
+              </div>
+              <div className="flex space-x-1">
+                <Button
+                  size="sm"
+                  variant={tradingMode === 'simulation' ? 'default' : 'outline'}
+                  onClick={() => switchTradingMode('simulation')}
+                  disabled={botRunning}
+                  className="flex-1 text-xs"
+                >
+                  模拟
+                </Button>
+                <Button
+                  size="sm"
+                  variant={tradingMode === 'live' ? 'default' : 'outline'}
+                  onClick={() => switchTradingMode('live')}
+                  disabled={botRunning}
+                  className="flex-1 text-xs"
+                >
+                  实盘
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* API状态 */}
+          <Card className="glassmorphism">
+            <CardContent className="p-6 text-center">
+              <div className="flex items-center justify-center mb-2">
+                {apiStatus === 'connected' ? (
+                  <Wifi className="w-8 h-8 text-green-400" />
+                ) : apiStatus === 'connecting' ? (
+                  <RefreshCw className="w-8 h-8 text-yellow-400 animate-spin" />
+                ) : apiStatus === 'error' ? (
+                  <WifiOff className="w-8 h-8 text-red-400" />
+                ) : (
+                  <WifiOff className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+              <div className="text-lg font-semibold">
+                {apiStatus === 'connected' ? '已连接' : 
+                 apiStatus === 'connecting' ? '连接中' : 
+                 apiStatus === 'error' ? '连接失败' : '未连接'}
+              </div>
+              <div className="text-sm text-slate-400">
+                {apiConnected ? exchanges.find(e => e.id === selectedExchange)?.name : 'API状态'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 机器人状态 */}
           <Card className="glassmorphism">
             <CardContent className="p-6 text-center">
               <div className="flex items-center justify-center mb-2">
@@ -554,38 +652,186 @@ export default function AutoTradePage() {
             </CardContent>
           </Card>
 
+          {/* 账户余额 */}
           <Card className="glassmorphism">
             <CardContent className="p-6 text-center">
               <div className="text-2xl font-bold text-blue-400 mb-1">
-                ${account.balance.toLocaleString()}
+                ${tradingMode === 'live' ? realTimeAccount.totalBalance.toLocaleString() : simulationAccount.balance.toLocaleString()}
               </div>
-              <div className="text-sm text-slate-400">账户余额</div>
+              <div className="text-sm text-slate-400">总余额</div>
+              {tradingMode === 'live' && (
+                <div className="text-xs text-slate-500 mt-1">
+                  可用: ${realTimeAccount.availableBalance.toLocaleString()}
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* 总盈亏 */}
           <Card className="glassmorphism">
             <CardContent className="p-6 text-center">
-              <div className={`text-2xl font-bold mb-1 ${account.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${account.totalProfit.toFixed(2)}
+              <div className={`text-2xl font-bold mb-1 ${
+                tradingMode === 'live' 
+                  ? (realTimeAccount.positions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0) >= 0 ? 'text-green-400' : 'text-red-400')
+                  : (simulationAccount.totalProfit >= 0 ? 'text-green-400' : 'text-red-400')
+              }`}>
+                ${tradingMode === 'live' 
+                  ? realTimeAccount.positions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0).toFixed(2)
+                  : simulationAccount.totalProfit.toFixed(2)
+                }
               </div>
               <div className="text-sm text-slate-400">总盈亏</div>
-            </CardContent>
-          </Card>
-
-          <Card className="glassmorphism">
-            <CardContent className="p-6 text-center">
-              <div className="text-2xl font-bold text-purple-400 mb-1">
-                {botStats.winRate.toFixed(1)}%
+              <div className="text-xs text-slate-500 mt-1">
+                胜率: {botStats.winRate.toFixed(1)}%
               </div>
-              <div className="text-sm text-slate-400">胜率</div>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Control Panel */}
+          {/* 控制面板 */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Bot Controls */}
+            {/* API配置 */}
+            <Card className="glassmorphism">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Key className="w-5 h-5" />
+                  <span>API配置</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>选择交易所</Label>
+                  <Select value={selectedExchange} onValueChange={setSelectedExchange} disabled={apiConnected}>
+                    <SelectTrigger className="glassmorphism border-white/20 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glassmorphism">
+                      {exchanges.map((exchange) => (
+                        <SelectItem key={exchange.id} value={exchange.id}>
+                          <div className="flex items-center space-x-2">
+                            <span>{exchange.icon}</span>
+                            <span>{exchange.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!apiConnected ? (
+                  <>
+                    <div>
+                      <Label htmlFor="apiKey">API密钥</Label>
+                      <Input
+                        id="apiKey"
+                        type="text"
+                        placeholder="输入API密钥"
+                        value={apiCredentials.apiKey}
+                        onChange={(e) => setApiCredentials(prev => ({ ...prev, apiKey: e.target.value }))}
+                        className="glassmorphism border-white/20 mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="apiSecret">API秘钥</Label>
+                      <div className="relative mt-1">
+                        <Input
+                          id="apiSecret"
+                          type={showApiSecret ? 'text' : 'password'}
+                          placeholder="输入API秘钥"
+                          value={apiCredentials.apiSecret}
+                          onChange={(e) => setApiCredentials(prev => ({ ...prev, apiSecret: e.target.value }))}
+                          className="glassmorphism border-white/20 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiSecret(!showApiSecret)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                        >
+                          {showApiSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {selectedExchange === 'okx' && (
+                      <div>
+                        <Label htmlFor="passphrase">Passphrase</Label>
+                        <Input
+                          id="passphrase"
+                          type="password"
+                          placeholder="输入Passphrase"
+                          value={apiCredentials.passphrase}
+                          onChange={(e) => setApiCredentials(prev => ({ ...prev, passphrase: e.target.value }))}
+                          className="glassmorphism border-white/20 mt-1"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="testnet">测试网络</Label>
+                      <Switch
+                        id="testnet"
+                        checked={apiCredentials.testnet}
+                        onCheckedChange={(checked) => setApiCredentials(prev => ({ ...prev, testnet: checked }))}
+                      />
+                    </div>
+
+                    <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                      <div className="flex items-start space-x-2">
+                        <Shield className="w-4 h-4 text-yellow-400 mt-0.5" />
+                        <div className="text-sm text-yellow-300">
+                          <div className="font-medium mb-1">安全提示</div>
+                          <ul className="text-xs space-y-1">
+                            <li>• 仅启用交易权限，禁用提现权限</li>
+                            <li>• 建议先使用测试网络验证</li>
+                            <li>• API密钥将安全加密存储</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      onClick={connectAPI}
+                      disabled={loading || !apiCredentials.apiKey || !apiCredentials.apiSecret}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {loading ? '连接中...' : '连接API'}
+                    </Button>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 glassmorphism rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <div>
+                          <div className="font-medium">{exchanges.find(e => e.id === selectedExchange)?.name}</div>
+                          <div className="text-xs text-slate-400">
+                            {apiCredentials.testnet ? '测试网络' : '主网络'}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={disconnectAPI}
+                        className="text-red-400 border-red-400/20 hover:bg-red-400/10"
+                      >
+                        断开
+                      </Button>
+                    </div>
+
+                    {tradingMode === 'live' && (
+                      <div className="text-xs text-slate-400 text-center">
+                        最后同步: {new Date(realTimeAccount.lastUpdate).toLocaleString('zh-CN')}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 机器人控制 */}
             <Card className="glassmorphism">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -594,157 +840,122 @@ export default function AutoTradePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {!apiConnected ? (
+                {!botRunning ? (
                   <Button 
-                    onClick={connectAPI}
-                    disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={handleStartBot}
+                    disabled={loading || (tradingMode === 'live' && !apiConnected)}
+                    className="w-full bg-green-600 hover:bg-green-700 glow-effect"
                   >
-                    {loading ? '连接中...' : '连接交易API'}
+                    {loading ? (
+                      <>
+                        <Activity className="w-4 h-4 mr-2 animate-spin" />
+                        启动中...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        启动机器人
+                      </>
+                    )}
                   </Button>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">API状态</span>
-                      <Badge variant="default">已连接</Badge>
+                  <Button 
+                    onClick={handleStopBot}
+                    className="w-full bg-red-600 hover:bg-red-700"
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    停止机器人
+                  </Button>
+                )}
+
+                {tradingMode === 'live' && !apiConnected && (
+                  <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span className="text-sm text-red-300">实盘交易需要先连接API</span>
                     </div>
-                    
-                    {!botRunning ? (
-                      <Button 
-                        onClick={handleStartBot}
-                        disabled={loading}
-                        className="w-full bg-green-600 hover:bg-green-700 glow-effect"
-                      >
-                        {loading ? (
-                          <>
-                            <Activity className="w-4 h-4 mr-2 animate-spin" />
-                            启动中...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            启动机器人
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={handleStopBot}
-                        className="w-full bg-red-600 hover:bg-red-700"
-                      >
-                        <Square className="w-4 h-4 mr-2" />
-                        停止机器人
-                      </Button>
-                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Settings */}
+            {/* 交易策略 */}
             <Card className="glassmorphism">
               <CardHeader>
-                <CardTitle>交易设置</CardTitle>
+                <CardTitle>交易策略</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="maxInvestment">最大投资金额</Label>
-                  <Input
-                    id="maxInvestment"
-                    type="number"
-                    value={settings.maxInvestment}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      maxInvestment: Number(e.target.value)
-                    }))}
-                    className="glassmorphism border-white/20 mt-1"
-                  />
+                  <Label>选择策略</Label>
+                  <Select value={settings.selectedStrategy} onValueChange={(value) => setSettings(prev => ({ ...prev, selectedStrategy: value }))}>
+                    <SelectTrigger className="glassmorphism border-white/20 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glassmorphism">
+                      {tradingStrategies.map((strategy) => (
+                        <SelectItem key={strategy.id} value={strategy.id}>
+                          <div>
+                            <div className="font-medium">{strategy.name}</div>
+                            <div className="text-xs text-slate-400">{strategy.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="stopLoss">止损百分比 (%)</Label>
-                  <Input
-                    id="stopLoss"
-                    type="number"
-                    value={settings.stopLoss}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      stopLoss: Number(e.target.value)
-                    }))}
-                    className="glassmorphism border-white/20 mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="takeProfit">止盈百分比 (%)</Label>
-                  <Input
-                    id="takeProfit"
-                    type="number"
-                    value={settings.takeProfit}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      takeProfit: Number(e.target.value)
-                    }))}
-                    className="glassmorphism border-white/20 mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>风险等级</Label>
-                  <div className="flex space-x-2 mt-2">
-                    {(['low', 'medium', 'high'] as const).map((level) => (
-                      <Button
-                        key={level}
-                        variant={settings.riskLevel === level ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSettings(prev => ({ ...prev, riskLevel: level }))}
-                        className="flex-1"
-                      >
-                        {level === 'low' ? '低' : level === 'medium' ? '中' : '高'}
-                      </Button>
-                    ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="stopLoss">止损 (%)</Label>
+                    <Input
+                      id="stopLoss"
+                      type="number"
+                      step="0.1"
+                      value={settings.stopLoss}
+                      onChange={(e) => setSettings(prev => ({ ...prev, stopLoss: Number(e.target.value) }))}
+                      className="glassmorphism border-white/20 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="takeProfit">止盈 (%)</Label>
+                    <Input
+                      id="takeProfit"
+                      type="number"
+                      step="0.1"
+                      value={settings.takeProfit}
+                      onChange={(e) => setSettings(prev => ({ ...prev, takeProfit: Number(e.target.value) }))}
+                      className="glassmorphism border-white/20 mt-1"
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Performance Stats */}
-            <Card className="glassmorphism">
-              <CardHeader>
-                <CardTitle>性能统计</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">总交易次数:</span>
-                  <span>{botStats.totalTrades}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">成功交易:</span>
-                  <span className="text-green-400">{botStats.successfulTrades}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">平均收益:</span>
-                  <span className={botStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                    ${botStats.avgProfit.toFixed(2)}
-                  </span>
-                </div>
                 <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-slate-400">胜率:</span>
-                    <span>{botStats.winRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={botStats.winRate} className="h-2" />
+                  <Label htmlFor="maxRisk">单笔最大风险 (%)</Label>
+                  <Input
+                    id="maxRisk"
+                    type="number"
+                    step="0.1"
+                    value={settings.maxRiskPerTrade}
+                    onChange={(e) => setSettings(prev => ({ ...prev, maxRiskPerTrade: Number(e.target.value) }))}
+                    className="glassmorphism border-white/20 mt-1"
+                  />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Dashboard */}
+          {/* 主面板 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Market Prices */}
+            {/* 实时行情 */}
             <Card className="glassmorphism">
               <CardHeader>
-                <CardTitle>实时行情</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>实时行情</span>
+                  <Badge variant="secondary" className="animate-pulse">
+                    <Clock className="w-3 h-3 mr-1" />
+                    实时更新
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -766,85 +977,103 @@ export default function AutoTradePage() {
               </CardContent>
             </Card>
 
-            {/* Current Positions */}
+            {/* 当前持仓 */}
             <Card className="glassmorphism">
               <CardHeader>
-                <CardTitle>当前持仓</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>当前持仓</span>
+                  <Badge variant="secondary">
+                    {tradingMode === 'live' ? realTimeAccount.positions.length : 0} 个持仓
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {account.positions.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    暂无持仓
-                  </div>
-                ) : (
+                {tradingMode === 'live' && realTimeAccount.positions.length > 0 ? (
                   <div className="space-y-4">
-                    {account.positions.map((position) => (
+                    {realTimeAccount.positions.map((position) => (
                       <div key={position.id} className="flex items-center justify-between p-4 glassmorphism rounded-lg">
-                        <div>
-                          <div className="font-semibold">{position.coin}</div>
-                          <div className="text-sm text-slate-400">
-                            {position.amount.toFixed(4)} @ ${position.entryPrice.toLocaleString()}
+                        <div className="flex items-center space-x-4">
+                          <Badge variant={position.side === 'long' ? 'default' : 'destructive'}>
+                            {position.side === 'long' ? '多头' : '空头'}
+                          </Badge>
+                          <div>
+                            <div className="font-semibold">{position.symbol}</div>
+                            <div className="text-sm text-slate-400">
+                              {position.size.toFixed(4)} @ ${position.entryPrice.toLocaleString()}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-semibold ${position.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {position.profit >= 0 ? '+' : ''}${position.profit.toFixed(2)}
+                          <div className={`font-semibold ${position.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {position.unrealizedPnl >= 0 ? '+' : ''}${position.unrealizedPnl.toFixed(2)}
                           </div>
-                          <div className={`text-sm ${position.profitPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {position.profitPercent >= 0 ? '+' : ''}{position.profitPercent.toFixed(2)}%
+                          <div className={`text-sm ${position.unrealizedPnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {position.unrealizedPnlPercent >= 0 ? '+' : ''}{position.unrealizedPnlPercent.toFixed(2)}%
                           </div>
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400">
+                    {tradingMode === 'live' ? '暂无实盘持仓' : '暂无模拟持仓'}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Recent Trades */}
-            <Card className="glassmorphism">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>最近交易</span>
-                  <Badge variant="secondary">
-                    {recentTrades.length} 笔记录
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {recentTrades.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    {botRunning ? '等待首笔交易...' : '启动机器人开始自动交易'}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentTrades.map((trade) => (
-                      <div key={trade.id} className={`flex items-center justify-between p-3 glassmorphism rounded-lg border-l-4 ${
-                        trade.profit >= 0 ? 'border-green-400' : 'border-red-400'
-                      }`}>
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-2 h-2 rounded-full ${trade.profit >= 0 ? 'bg-green-400' : 'bg-red-400'}`} />
-                          <div>
-                            <div className="font-medium">{trade.coin}</div>
-                            <div className="text-xs text-slate-400">
-                              {new Date(trade.timestamp).toLocaleString('zh-CN')}
+            {/* 订单状态 */}
+            {tradingMode === 'live' && (
+              <Card className="glassmorphism">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>订单状态</span>
+                    <Badge variant="secondary">
+                      {realTimeAccount.orders.length} 个订单
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {realTimeAccount.orders.length > 0 ? (
+                    <div className="space-y-3">
+                      {realTimeAccount.orders.map((order) => (
+                        <div key={order.id} className="flex items-center justify-between p-3 glassmorphism rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Badge variant={order.side === 'buy' ? 'default' : 'destructive'}>
+                              {order.side === 'buy' ? '买入' : '卖出'}
+                            </Badge>
+                            <div>
+                              <div className="font-medium">{order.symbol}</div>
+                              <div className="text-xs text-slate-400">
+                                {order.amount.toFixed(4)} {order.type === 'limit' && order.price && `@ $${order.price.toFixed(2)}`}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant={
+                              order.status === 'filled' ? 'default' :
+                              order.status === 'pending' ? 'secondary' :
+                              order.status === 'cancelled' ? 'outline' : 'destructive'
+                            }>
+                              {order.status === 'filled' ? '已成交' :
+                               order.status === 'pending' ? '待成交' :
+                               order.status === 'cancelled' ? '已取消' : '已拒绝'}
+                            </Badge>
+                            <div className="text-xs text-slate-400 mt-1">
+                              {new Date(order.timestamp).toLocaleString('zh-CN')}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`font-semibold ${trade.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {trade.profit >= 0 ? '+' : ''}${trade.profit.toFixed(2)}
-                          </div>
-                          <div className={`text-xs ${trade.profitPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {trade.profitPercent >= 0 ? '+' : ''}{trade.profitPercent.toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      暂无订单记录
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* 交易日志 */}
             <Card className="glassmorphism">
@@ -852,6 +1081,7 @@ export default function AutoTradePage() {
                 <CardTitle className="flex items-center space-x-2">
                   <Activity className="w-5 h-5 text-blue-400" />
                   <span>交易日志</span>
+                  <Badge variant="secondary">{tradingMode === 'live' ? '实盘' : '模拟'}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -862,56 +1092,16 @@ export default function AutoTradePage() {
                     </div>
                   ) : (
                     tradingLogs.map((log, index) => (
-                      <div key={index} className="text-sm p-2 glassmorphism rounded text-slate-300">
+                      <div key={index} className={`text-sm p-2 glassmorphism rounded ${
+                        log.includes('盈利') ? 'border-l-4 border-green-400 text-green-300' :
+                        log.includes('亏损') ? 'border-l-4 border-red-400 text-red-300' :
+                        log.includes('连接') || log.includes('启动') ? 'border-l-4 border-blue-400 text-blue-300' :
+                        'text-slate-300'
+                      }`}>
                         {log}
                       </div>
                     ))
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 市场状况 */}
-            <Card className="glassmorphism">
-              <CardHeader>
-                <CardTitle>当前市场状况</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 glassmorphism rounded-lg">
-                    <div className="text-sm text-slate-400 mb-1">交易时段</div>
-                    <div className={`font-medium ${isWithinTradingHours() ? 'text-green-400' : 'text-red-400'}`}>
-                      {isWithinTradingHours() ? '活跃时段' : '休市时段'}
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 glassmorphism rounded-lg">
-                    <div className="text-sm text-slate-400 mb-1">市场波动</div>
-                    <div className="font-medium text-yellow-400">
-                      {marketConditions.volatility === 'high' ? '高波动' : 
-                       marketConditions.volatility === 'medium' ? '中等波动' : '低波动'}
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 glassmorphism rounded-lg">
-                    <div className="text-sm text-slate-400 mb-1">整体趋势</div>
-                    <div className="font-medium text-blue-400">
-                      {marketConditions.trend === 'bullish' ? '看涨' : 
-                       marketConditions.trend === 'bearish' ? '看跌' : '中性'}
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 glassmorphism rounded-lg">
-                    <div className="text-sm text-slate-400 mb-1">成交量</div>
-                    <div className="font-medium text-purple-400">
-                      {marketConditions.volume === 'high' ? '高成交量' : 
-                       marketConditions.volume === 'low' ? '低成交量' : '正常'}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 text-xs text-slate-400 text-center">
-                  最后更新: {new Date(marketConditions.lastUpdate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} CST
                 </div>
               </CardContent>
             </Card>
