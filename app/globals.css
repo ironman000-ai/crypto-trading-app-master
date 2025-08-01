@@ -79,3 +79,11 @@
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(15, 52, 96, 0.4);
 }
+
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}

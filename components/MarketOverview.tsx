@@ -221,21 +221,3 @@ export function MarketOverview() {
     </div>
   );
 }
-
-// 添加CSS动画效果
-const styles = `
-  .glow-green {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
-  }
-  
-  .glow-red {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-  }
-`;
-
-// 注入样式
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = styles;
-  document.head.appendChild(styleSheet);
-}
