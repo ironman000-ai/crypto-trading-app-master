@@ -16,6 +16,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import axios from 'axios';
 
+interface MarketData {
+  symbol: string;
+  price: number;
+  change_24h: number;
+  volume: number;
+  rsi?: number;
+  macd?: number;
+  ma7?: number;
+  ma25?: number;
+  trend?: 'bullish' | 'bearish' | 'sideways';
+  signal_strength?: number;
+}
+
 interface BotSettings {
   amount: number;
   stopLoss: number;
@@ -126,6 +139,7 @@ export default function AutoTradePage() {
     positions: [],
   });
   const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
+  const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [stats, setStats] = useState({
     totalTrades: 0,
     profitableTrades: 0,
