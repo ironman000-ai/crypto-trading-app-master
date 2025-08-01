@@ -189,6 +189,7 @@ export default function AutoTradePage() {
   const [recentTrades, setRecentTrades] = useState([]);
   const [tradingLogs, setTradingLogs] = useState<string[]>([]);
   const [lastApiCall, setLastApiCall] = useState(0);
+  const [dataUpdateCount, setDataUpdateCount] = useState(0);
   const [lastLogMessage, setLastLogMessage] = useState('');
 
   // 统计数据
