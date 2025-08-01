@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bot, Play, Square, Settings, TrendingUp, TrendingDown, Activity, AlertTriangle, DollarSign, Target, Zap, Shield, Key, Globe, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 interface ExchangeConfig {
   id: string;
@@ -254,16 +255,6 @@ export default function AutoTradePage() {
             setMarketPrices(updatedPrices);
             logTradingActivity(`市场数据更新 - ${updatedPrices.length}个币种价格已同步 (API)`);
           }
-            const oldPrice = marketPrices[index];
-            if (!oldPrice) return true;
-            const changePercent = Math.abs((newPrice.price - oldPrice.price) / oldPrice.price * 100);
-            return changePercent > 0.1;
-          });
-          
-          if (shouldUpdate) {
-            setMarketPrices(updatedPrices);
-            logTradingActivity(`市场数据更新 - ${updatedPrices.length}个币种价格已同步`);
-          }
         } catch (apiError) {
           // API失败时使用更稳定的模拟数据
           setMarketPrices(prev => prev.map(market => ({
@@ -272,6 +263,7 @@ export default function AutoTradePage() {
             change: market.change + (Math.random() - 0.5) * 2, // 2%变化
           })));
           logTradingActivity(`使用模拟数据更新市场价格 - API暂时不可用 (${new Date().toLocaleTimeString()})`);
+        }
       } catch (error) {
         console.warn('市场数据更新失败:', error);
         // 即使出错也要更新数据，保持界面活跃
@@ -290,6 +282,7 @@ export default function AutoTradePage() {
     const marketInterval = setInterval(updateMarketData, 10000);
     
     return () => clearInterval(marketInterval);
+  }, []);
 
   // 实时账户同步
   useEffect(() => {
@@ -1049,15 +1042,6 @@ export default function AutoTradePage() {
                       <>
                         <Play className="w-4 h-4 mr-2" />
                         启动机器人
-                    {botRunning ? (
-                      <>
-                        <Activity className="w-4 h-4 mr-2 animate-pulse" />
-                        机器人运行中
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 mr-2" />
-                        启动机器人
                       </>
                     )}
                   </Button>
@@ -1208,7 +1192,7 @@ export default function AutoTradePage() {
                   <span className="text-green-400 ml-1">● 10秒自动更新</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {marketData.length > 0 ? marketData.map((coin) => (
+                  {marketPrices.map((market) => (
                     <div key={market.coin} className="p-4 glassmorphism rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold">{market.coin}</span>
@@ -1232,11 +1216,7 @@ export default function AutoTradePage() {
                         />
                       </div>
                     </div>
-                  )) : (
-                    <div className="col-span-full text-center text-slate-400 py-8">
-                      正在加载市场数据...
-                    </div>
-                  )}
+                  ))}
                 </div>
               </CardContent>
             </Card>
