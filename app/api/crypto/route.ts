@@ -7,7 +7,7 @@ const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
 
 // 简单的内存缓存
 const cache = new Map();
-const CACHE_DURATION = 900000; // 15分钟缓存
+const CACHE_DURATION = 1800000; // 30分钟缓存
 
 function getCacheKey(endpoint: string, params: any): string {
   return `${endpoint}_${JSON.stringify(params)}`;
