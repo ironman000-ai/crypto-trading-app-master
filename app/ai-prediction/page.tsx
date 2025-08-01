@@ -100,28 +100,27 @@ export default function AIPredictionPage() {
       const coinData = coins.find(c => c.value === selectedCoin);
       if (!coinData) return;
 
-      const timeframeData = timeframes.find(t => t.value === timeframe);
-      const days = Math.floor(timeframeData?.days || 1);
+      // 映射时间周期到AllTick格式
+      const periodMap: { [key: string]: string } = {
+        '5m': '5m',
+        '15m': '15m', 
+        '30m': '30m',
+        '1h': '1h',
+        '4h': '4h',
+        '1d': '1d',
+        '1w': '1w'
+      };
       
-      // Set appropriate interval based on days
-      let interval = 'hourly';
-      if (days === 1 && (timeframe === '5m' || timeframe === '15m' || timeframe === '30m')) {
-        interval = 'minutely';
-      } else if (days <= 1) {
-        interval = 'hourly';
-      } else if (days <= 90) {
-        interval = 'hourly';
-      } else {
-        interval = 'daily';
-      }
+      const period = periodMap[timeframe] || '1h';
+      const count = timeframe.includes('m') ? 100 : timeframe === '1h' ? 168 : 100;
 
-      // Fetch price data using Pro API
-      const response = await axios.get('/api/coingecko', {
+      // 使用AllTick API获取K线数据
+      const response = await axios.get('/api/alltick', {
         params: {
-          path: `coins/${coinData.id}/market_chart`,
-          vs_currency: 'usd',
-          days: days,
-          interval: interval
+          endpoint: 'kline',
+          symbol: coinData.id,
+          period: period,
+          count: count
         }
       });
 
@@ -166,7 +165,7 @@ export default function AIPredictionPage() {
 
       setMarketData(enhancedData);
     } catch (error) {
-      console.warn('CoinGecko API调用失败，使用备用数据:', error);
+      console.warn('AllTick API调用失败，使用备用数据:', error);
       generateFallbackMarketData();
     }
   };
@@ -253,13 +252,11 @@ export default function AIPredictionPage() {
       const coinData = coins.find(c => c.value === selectedCoin);
       if (!coinData) return;
       
-      // 使用Pro API获取更详细的市场数据
-      const response = await axios.get('/api/coingecko', {
+      // 使用AllTick API获取实时市场数据
+      const response = await axios.get('/api/alltick', {
         params: {
-          path: 'coins/markets',
-          vs_currency: 'usd',
-          ids: coinData.id,
-          include_24hr_change: true
+          endpoint: 'realtime',
+          symbols: coinData.id
         }
       });
       
@@ -341,7 +338,7 @@ export default function AIPredictionPage() {
       
       setPrediction(enhancedPrediction);
     } catch (error) {
-      console.warn('CoinGecko API调用失败，使用备用预测数据:', error);
+      console.warn('AllTick API调用失败，使用备用预测数据:', error);
       
       // Enhanced fallback prediction with coin-specific data
       const basePrices: { [key: string]: number } = {

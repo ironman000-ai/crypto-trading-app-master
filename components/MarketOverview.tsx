@@ -21,17 +21,16 @@ export function MarketOverview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 从 CoinGecko API 获取真实市场数据
+    // 从 AllTick API 获取真实市场数据
     const fetchCoinData = async () => {
       try {
         setLoading(true);
         
-        // 获取前6个热门加密货币的数据 - 使用Pro API
-        const response = await axios.get(
-          `/api/coingecko?path=coins/markets&vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false&price_change_percentage=24h`
-        );
+        // 获取前6个热门加密货币的数据 - 使用AllTick API
+        const coinIds = 'bitcoin,ethereum,binancecoin,solana,ripple,cardano';
+        const response = await axios.get(`/api/alltick?endpoint=realtime&symbols=${coinIds}`);
         
-        // 转换 API 数据到我们的 CoinData 格式
+        // AllTick API 数据已经是正确格式
         const formattedData: CoinData[] = response.data.map((coin: any) => ({
           id: coin.id,
           symbol: coin.symbol.toUpperCase(),
@@ -40,12 +39,12 @@ export function MarketOverview() {
           change_24h: coin.price_change_24h,
           change_percent: coin.price_change_percentage_24h,
           volume: coin.total_volume,
-          image: coin.image
+          image: undefined // AllTick不提供图片
         }));
         
         setCoins(formattedData);
       } catch (error) {
-        console.warn('CoinGecko API调用失败，使用备用数据:', error);
+        console.warn('AllTick API调用失败，使用备用数据:', error);
         // 如果 API 调用失败，使用模拟数据
         const fallbackData: CoinData[] = [
           { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 97234.56, change_24h: 1856.78, change_percent: 1.95, volume: 28500000000 },
@@ -62,8 +61,8 @@ export function MarketOverview() {
     };
 
     fetchCoinData();
-    // 每2分钟更新一次数据以避免API速率限制
-    const interval = setInterval(fetchCoinData, 120000);
+    // 每30秒更新一次数据 - AllTick API支持更高频率
+    const interval = setInterval(fetchCoinData, 30000);
 
     return () => clearInterval(interval);
   }, []);
