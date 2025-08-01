@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, DollarSign, TrendingUp, Activity, AlertTriangle, Zap, Target, BarChart3 } from 'lucide-react';
+import { Shield, DollarSign, TrendingUp, TrendingDown, Activity, AlertTriangle, Zap, Target, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

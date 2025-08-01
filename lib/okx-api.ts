@@ -142,7 +142,16 @@ class OKXAPIClient {
   // 生成签名
   private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ''): string {
     const message = timestamp + method + requestPath + body;
-    return crypto.createHmac('sha256', this.secretKey).update(message).digest('base64');
+    const signature = crypto.createHmac('sha256', this.secretKey).update(message).digest('base64');
+    console.log('OKX API Debug:', {
+      timestamp,
+      method,
+      requestPath,
+      body: body.substring(0, 100),
+      apiKey: this.apiKey.substring(0, 8) + '...',
+      passphrase: this.passphrase
+    });
+    return signature;
   }
 
   // 通用请求方法
@@ -168,6 +177,7 @@ class OKXAPIClient {
       'OK-ACCESS-TIMESTAMP': timestamp,
       'OK-ACCESS-PASSPHRASE': this.passphrase,
       'Content-Type': 'application/json',
+      'x-simulated-trading': '1' // 添加模拟交易标识
     };
 
     try {
