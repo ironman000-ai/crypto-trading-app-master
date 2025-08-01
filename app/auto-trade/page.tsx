@@ -900,6 +900,8 @@ export default function AutoTradePage() {
                     {tradingMode === 'live' && (
                       <div className="text-xs text-slate-400 text-center">
                         最后同步: {new Date(realTimeAccount.lastUpdate).toLocaleString('zh-CN')}
+                        <br />
+                        <span className="text-green-400">● 实时同步中 (8秒间隔)</span>
                       </div>
                     )}
                   </div>
