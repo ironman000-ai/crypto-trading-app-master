@@ -549,9 +549,11 @@ export default function AutoTradePage() {
     return { action, confidence: Math.round(confidence), signalStrength: Math.round(signalStrength), urgency };
   };
 
-  const calculatePositionSize = (currentBalance: number, volatility: number, confidence: number) => {
+  const calculatePositionSize = (currentBalance: number, volatilityParam: number, confidenceParam: number) => {
     const indicators = calculateTechnicalIndicators(coin);
-    const effectiveVolatility = indicators.volatility || 5;
+    const volatility = indicators.volatility || 5;
+    const volatilityMultiplier = Math.max(0.5, Math.min(2.0, 10 / volatility));
+    const confidence = Math.max(0.1, Math.min(1.0, confidenceParam / 100));
     const tradeAmount = calculatePositionSize(currentBalance, volatility, confidence);
   };
 
@@ -562,10 +564,9 @@ export default function AutoTradePage() {
     const coinPositions = account.positions.filter(pos => pos.coin === marketPrice.coin).length;
     
     return {
-      canBuy: currentDrawdown < settings.riskManagement.maxDrawdown &&
+    const confidenceMultiplier = confidence;
               positionCount < settings.riskManagement.diversificationLimit &&
               coinPositions === 0, // Prevent multiple positions in same coin
-    const volatilityMultiplier = Math.max(0.5, Math.min(2.0, 10 / effectiveVolatility));
       positionCount,
       riskLevel: currentDrawdown > 10 ? 'high' : currentDrawdown > 5 ? 'medium' : 'low'
     };
