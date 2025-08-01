@@ -189,6 +189,7 @@ export default function AutoTradePage() {
   const [recentTrades, setRecentTrades] = useState([]);
   const [tradingLogs, setTradingLogs] = useState<string[]>([]);
   const [lastApiCall, setLastApiCall] = useState(0);
+  const [dataUpdateCount, setDataUpdateCount] = useState(0);
   const [lastLogMessage, setLastLogMessage] = useState('');
 
   // 统计数据
@@ -228,8 +229,15 @@ export default function AutoTradePage() {
 
   // 实时数据更新
   useEffect(() => {
-    const updateMarketData = useCallback(async () => {
+    const updateMarketData = async () => {
       try {
+        // 限制API调用频率，避免过度请求
+        if (Date.now() - lastApiCall < 30000) { // 30秒内不重复调用API
+          return;
+        }
+        
+        setLastApiCall(Date.now());
+        
         try {
           // 使用axios获取实时价格数据
           const response = await axios.get('/api/coingecko', {
@@ -250,10 +258,8 @@ export default function AutoTradePage() {
             change: coin.price_change_percentage_24h || 0,
           }));
           
-          if (updatedPrices.length > 0) {
-            setMarketPrices(updatedPrices);
-            logTradingActivity(`市场数据更新 - ${updatedPrices.length}个币种价格已同步 (API)`);
-          }
+          // 只有价格变化超过0.1%时才更新
+          const shouldUpdate = updatedPrices.some((newPrice, index) => {
             const oldPrice = marketPrices[index];
             if (!oldPrice) return true;
             const changePercent = Math.abs((newPrice.price - oldPrice.price) / oldPrice.price * 100);
@@ -268,33 +274,28 @@ export default function AutoTradePage() {
           // API失败时使用更稳定的模拟数据
           setMarketPrices(prev => prev.map(market => ({
             ...market,
-            price: market.price * (1 + (Math.random() - 0.5) * 0.03), // 3%波动
-            change: market.change + (Math.random() - 0.5) * 2, // 2%变化
+            price: market.price * (1 + (Math.random() - 0.5) * 0.005), // 0.5%小幅波动
+            change: market.change + (Math.random() - 0.5) * 0.2, // 0.2%变化
           })));
-          logTradingActivity(`使用模拟数据更新市场价格 - API暂时不可用 (${new Date().toLocaleTimeString()})`);
+        }
       } catch (error) {
         console.warn('市场数据更新失败:', error);
-        // 即使出错也要更新数据，保持界面活跃
-        setMarketPrices(prev => prev.map(market => ({
-          ...market,
-          price: market.price * (1 + (Math.random() - 0.5) * 0.01),
-          change: market.change + (Math.random() - 0.5) * 0.5,
-        })));
       }
-    }, []);
+    };
 
     // 立即更新一次
     updateMarketData();
     
-    // 每10秒更新一次市场数据
-    const marketInterval = setInterval(updateMarketData, 10000);
+    // 每60秒更新一次市场数据，减少频率
+    const marketInterval = setInterval(updateMarketData, 60000);
     
     return () => clearInterval(marketInterval);
+  }, [lastApiCall, marketPrices]);
 
   // 实时账户同步
   useEffect(() => {
     if (apiConnected && tradingMode === 'live') {
-      const syncAccount = useCallback(async () => {
+      const syncAccount = async () => {
         try {
           // 根据选择的交易所同步账户数据
           let accountData: RealTimeAccount;
@@ -321,11 +322,11 @@ export default function AutoTradePage() {
         } catch (error) {
           logTradingActivity(`${exchanges.find(e => e.id === selectedExchange)?.name} 账户同步失败: ${error.message}`);
         }
-      }, [selectedExchange, apiConnected, tradingMode]);
+      };
 
       // 立即同步一次，然后每8秒同步一次账户数据
       syncAccount();
-      const accountInterval = setInterval(syncAccount, 15000);
+      const accountInterval = setInterval(syncAccount, 8000);
       return () => clearInterval(accountInterval);
     }
   }, [apiConnected, tradingMode, selectedExchange]);
@@ -619,16 +620,11 @@ export default function AutoTradePage() {
 
   // 智能交易执行
   useEffect(() => {
-    if (botRunning) {
-      const executeTrade = async () => {
-        if (!isWithinTradingHours()) {
-          logTradingActivity('当前不在交易时间范围内，跳过交易');
-          return;
-        }
-        
+    if (botRunning && isWithinTradingHours()) {
+      const tradingInterval = setInterval(async () => {
         try {
           // 分析市场条件
-          const shouldTrade = Math.random() > 0.7; // 30% 交易概率
+          const shouldTrade = Math.random() > 0.85; // 15% 交易概率
           
           if (shouldTrade) {
             const coin = settings.coins[Math.floor(Math.random() * settings.coins.length)];
@@ -682,11 +678,7 @@ export default function AutoTradePage() {
         } catch (error) {
           logTradingActivity(`交易执行错误: ${error.message}`);
         }
-      };
-
-      // 立即执行一次，然后每30秒执行一次
-      executeTrade();
-      const tradingInterval = setInterval(executeTrade, 30000);
+      }, 45000);
 
       return () => clearInterval(tradingInterval);
     }
@@ -748,7 +740,7 @@ export default function AutoTradePage() {
             <h2 className="text-2xl font-bold mb-4">需要登录</h2>
             <p className="text-slate-400 mb-6">请先登录以使用自动交易功能</p>
             <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <a href="/auth/login">立即登录</a>
+              最后更新: {new Date().toLocaleTimeString('zh-CN')} • 每20秒自动更新 • 更新次数: {dataUpdateCount}
             </Button>
           </CardContent>
         </Card>
@@ -1049,15 +1041,6 @@ export default function AutoTradePage() {
                       <>
                         <Play className="w-4 h-4 mr-2" />
                         启动机器人
-                    {botRunning ? (
-                      <>
-                        <Activity className="w-4 h-4 mr-2 animate-pulse" />
-                        机器人运行中
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 mr-2" />
-                        启动机器人
                       </>
                     )}
                   </Button>
@@ -1080,10 +1063,7 @@ export default function AutoTradePage() {
                   </div>
                 )}
               </CardContent>
-            </Card>
-
-            {/* 交易策略 */}
-            <Card className="glassmorphism">
+                    ${formatPrice(coin.price)}
               <CardHeader>
                 <CardTitle>交易策略</CardTitle>
               </CardHeader>
@@ -1204,8 +1184,7 @@ export default function AutoTradePage() {
               </CardHeader>
               <CardContent>
                 <div className="mb-4 text-xs text-slate-400 text-center">
-                  最后更新: {new Date().toLocaleTimeString('zh-CN')} | 
-                  <span className="text-green-400 ml-1">● 10秒自动更新</span>
+                  最后更新: {new Date().toLocaleTimeString('zh-CN')}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {marketPrices.map((market) => (
