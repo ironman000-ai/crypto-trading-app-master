@@ -634,8 +634,13 @@ export default function AutoTradePage() {
               const rsi = 30 + Math.random() * 40;
               const maSignal = Math.random() > 0.5;
               const volatility = Math.abs(marketPrice.change);
-                // 根据选择的策略进行分析
-                const { shouldBuy, shouldSell } = analyzeMarketByStrategy(settings.selectedStrategy, marketPrice);
+              
+              // 根据选择的策略进行分析
+              const { shouldBuy, shouldSell } = analyzeMarketByStrategy(settings.selectedStrategy, marketPrice);
+              
+              if (shouldBuy || shouldSell) {
+                const side = shouldBuy ? 'buy' : 'sell';
+                const amount = (settings.maxInvestment * settings.maxRiskPerTrade / 100) / marketPrice.price;
                 
                 if (tradingMode === 'live' && apiConnected) {
                   // 执行实盘交易
@@ -724,6 +729,7 @@ export default function AutoTradePage() {
         return { shouldBuy: false, shouldSell: false };
     }
   };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 flex items-center justify-center">
@@ -1157,27 +1163,6 @@ export default function AutoTradePage() {
                     onChange={(e) => setSettings(prev => ({ ...prev, maxRiskPerTrade: Number(e.target.value) }))}
                     className="glassmorphism border-white/20 mt-1"
                   />
-                </div>
-
-                {/* 策略统计 */}
-                <div className="p-3 glassmorphism rounded-lg">
-                  <h4 className="text-sm font-medium mb-2">策略表现</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-center">
-                      <div className="text-green-400 font-semibold">
-                        {tradingStrategies.find(s => s.id === settings.selectedStrategy)?.riskLevel === 'low' ? '85%' :
-                         tradingStrategies.find(s => s.id === settings.selectedStrategy)?.riskLevel === 'medium' ? '72%' : '68%'}
-                      </div>
-                      <div className="text-slate-400">胜率</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-blue-400 font-semibold">
-                        {tradingStrategies.find(s => s.id === settings.selectedStrategy)?.riskLevel === 'low' ? '1.8' :
-                         tradingStrategies.find(s => s.id === settings.selectedStrategy)?.riskLevel === 'medium' ? '2.1' : '2.8'}
-                      </div>
-                      <div className="text-slate-400">盈亏比</div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
