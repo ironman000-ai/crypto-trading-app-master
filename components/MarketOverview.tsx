@@ -24,12 +24,12 @@ export function MarketOverview() {
       try {
         setLoading(true);
         
-        // 获取前6个热门加密货币的数据 - 使用AllTick API
+        // 获取前6个热门加密货币的数据 - 使用CoinGecko API
         const coinIds = 'bitcoin,ethereum,binancecoin,solana,ripple,cardano';
-        const response = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinIds}`);
+        const response = await fetch(`/api/crypto?endpoint=coins/markets&ids=${coinIds}&vs_currency=usd`);
         const data = await response.json();
         
-        // AllTick API 数据已经是正确格式
+        // CoinGecko API 数据格式转换
         const formattedData: CoinData[] = data.map((coin: any) => ({
           id: coin.id,
           symbol: coin.symbol.toUpperCase(),
@@ -38,20 +38,20 @@ export function MarketOverview() {
           change_24h: coin.price_change_24h,
           change_percent: coin.price_change_percentage_24h,
           volume: coin.total_volume,
-          image: undefined // AllTick不提供图片
+          image: coin.image // CoinGecko提供图片
         }));
         
         setCoins(formattedData);
       } catch (error) {
-        console.warn('AllTick API调用失败，使用备用数据:', error);
+        console.warn('CoinGecko API调用失败，使用备用数据:', error);
         // 如果 API 调用失败，使用模拟数据
         const fallbackData: CoinData[] = [
-          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 97234.56, change_24h: 1856.78, change_percent: 1.95, volume: 28500000000 },
-          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 3456.89, change_24h: -89.45, change_percent: -2.52, volume: 15200000000 },
-          { id: 'binancecoin', symbol: 'BNB', name: 'BNB', price: 678.23, change_24h: 12.34, change_percent: 1.85, volume: 2100000000 },
-          { id: 'solana', symbol: 'SOL', name: 'Solana', price: 234.67, change_24h: 8.92, change_percent: 3.95, volume: 4200000000 },
-          { id: 'ripple', symbol: 'XRP', name: 'XRP', price: 2.34, change_24h: 0.12, change_percent: 5.41, volume: 8900000000 },
-          { id: 'cardano', symbol: 'ADA', name: 'Cardano', price: 1.23, change_24h: -0.05, change_percent: -3.89, volume: 1800000000 },
+          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 43250.67, change_24h: 1234.56, change_percent: 2.94, volume: 28500000000 },
+          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 2678.45, change_24h: -89.23, change_percent: -3.22, volume: 15200000000 },
+          { id: 'binancecoin', symbol: 'BNB', name: 'BNB', price: 312.89, change_24h: 8.45, change_percent: 2.78, volume: 1200000000 },
+          { id: 'solana', symbol: 'SOL', name: 'Solana', price: 67.23, change_24h: 2.34, change_percent: 3.61, volume: 2100000000 },
+          { id: 'ripple', symbol: 'XRP', name: 'XRP', price: 0.6234, change_24h: 0.0234, change_percent: 3.91, volume: 1800000000 },
+          { id: 'cardano', symbol: 'ADA', name: 'Cardano', price: 0.3456, change_24h: -0.0123, change_percent: -3.44, volume: 450000000 },
         ];
         setCoins(fallbackData);
       } finally {
@@ -60,8 +60,8 @@ export function MarketOverview() {
     };
 
     fetchCoinData();
-    // 每30秒更新一次数据 - AllTick API支持更高频率
-    const interval = setInterval(fetchCoinData, 30000);
+    // 每60秒更新一次数据 - CoinGecko免费API限制
+    const interval = setInterval(fetchCoinData, 60000);
 
     return () => clearInterval(interval);
   }, []);

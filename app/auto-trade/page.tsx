@@ -123,12 +123,12 @@ export default function AutoTradePage() {
       
       const coinId = coinMap[config.symbol] || 'bitcoin';
       
-      // 获取当前价格和24小时数据 - 使用AllTick API
-      const marketResponse = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinId}`);
+      // 获取当前价格和24小时数据 - 使用CoinGecko API
+      const marketResponse = await fetch(`/api/crypto?endpoint=coins/markets&ids=${coinId}&vs_currency=usd`);
       const marketData = await marketResponse.json();
       
-      // 获取历史价格数据用于技术分析 - 使用AllTick API
-      const chartResponse = await fetch(`/api/alltick?endpoint=kline&symbol=${coinId}&period=1h&count=168`);
+      // 获取历史价格数据用于技术分析 - 使用CoinGecko API
+      const chartResponse = await fetch(`/api/crypto?endpoint=coins/chart&id=${coinId}&vs_currency=usd&days=7&interval=hourly`);
       const chartData = await chartResponse.json();
       
       const currentMarketData = marketData[0];
@@ -196,7 +196,7 @@ export default function AutoTradePage() {
       return marketAnalysisResult;
       
     } catch (error) {
-      console.error('AllTick市场分析失败:', error);
+      console.error('CoinGecko市场分析失败:', error);
       addLog(`市场分析失败: ${error instanceof Error ? error.message : '未知错误'}`);
       return null;
     }

@@ -99,22 +99,21 @@ export default function AIPredictionPage() {
       const coinData = coins.find(c => c.value === selectedCoin);
       if (!coinData) return;
 
-      // 映射时间周期到AllTick格式
-      const periodMap: { [key: string]: string } = {
-        '5m': '5m',
-        '15m': '15m', 
-        '30m': '30m',
-        '1h': '1h',
-        '4h': '4h',
-        '1d': '1d',
-        '1w': '1w'
+      // 映射时间周期到天数
+      const daysMap: { [key: string]: string } = {
+        '5m': '1',
+        '15m': '1',
+        '30m': '1',
+        '1h': '1',
+        '4h': '3',
+        '1d': '7',
+        '1w': '30'
       };
       
-      const period = periodMap[timeframe] || '1h';
-      const count = timeframe.includes('m') ? 100 : timeframe === '1h' ? 168 : 100;
+      const days = daysMap[timeframe] || '1';
 
-      // 使用AllTick API获取K线数据
-      const response = await fetch(`/api/alltick?endpoint=kline&symbol=${coinData.id}&period=${period}&count=${count}`);
+      // 使用CoinGecko API获取历史价格数据
+      const response = await fetch(`/api/crypto?endpoint=coins/chart&id=${coinData.id}&vs_currency=usd&days=${days}&interval=hourly`);
       const data = await response.json();
 
       // Process and enhance data
@@ -158,7 +157,7 @@ export default function AIPredictionPage() {
 
       setMarketData(enhancedData);
     } catch (error) {
-      console.warn('AllTick API调用失败，使用备用数据:', error);
+      console.warn('CoinGecko API调用失败，使用备用数据:', error);
       generateFallbackMarketData();
     }
   };
@@ -245,8 +244,8 @@ export default function AIPredictionPage() {
       const coinData = coins.find(c => c.value === selectedCoin);
       if (!coinData) return;
       
-      // 使用AllTick API获取实时市场数据
-      const response = await fetch(`/api/alltick?endpoint=realtime&symbols=${coinData.id}`);
+      // 使用CoinGecko API获取实时市场数据
+      const response = await fetch(`/api/crypto?endpoint=coins/markets&ids=${coinData.id}&vs_currency=usd`);
       const data = await response.json();
       
       const currentPrice = data[0]?.current_price || 45000;
@@ -327,12 +326,12 @@ export default function AIPredictionPage() {
       
       setPrediction(enhancedPrediction);
     } catch (error) {
-      console.warn('AllTick API调用失败，使用备用预测数据:', error);
+      console.warn('CoinGecko API调用失败，使用备用预测数据:', error);
       
       // Enhanced fallback prediction with coin-specific data
       const basePrices: { [key: string]: number } = {
-        'BTC': 97234, 'ETH': 3456, 'BNB': 678, 'SOL': 234, 'XRP': 2.34,
-        'USDC': 1.00, 'ADA': 0.45, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
+        'BTC': 43250, 'ETH': 2678, 'BNB': 312, 'SOL': 67, 'XRP': 0.62,
+        'USDC': 1.00, 'ADA': 0.35, 'AVAX': 28, 'DOGE': 0.08, 'TRX': 0.11,
         'DOT': 6.5, 'MATIC': 0.85, 'LTC': 75, 'SHIB': 0.000012, 'UNI': 8.5,
         'ATOM': 12, 'LINK': 15, 'APT': 9.5, 'ICP': 5.2, 'FIL': 4.8,
       };
