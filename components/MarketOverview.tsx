@@ -238,3 +238,4 @@ if (typeof document !== 'undefined') {
   const styleSheet = document.createElement('style');
   styleSheet.textContent = styles;
   document.head.appendChild(styleSheet);
+}
