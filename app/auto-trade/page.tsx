@@ -1358,4 +1358,3 @@ export default function AutoTradePage() {
     </div>
   );
 }
-}
