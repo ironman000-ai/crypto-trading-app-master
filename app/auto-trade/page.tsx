@@ -426,6 +426,8 @@ export default function AutoTradePage() {
 
   const handleConnectAPI = async () => {
     try {
+      toast.info('正在连接API...');
+      
       // Real API connection simulation with proper data fetching
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -545,6 +547,12 @@ export default function AutoTradePage() {
     }
 
     return { action, confidence: Math.round(confidence), signalStrength: Math.round(signalStrength), urgency };
+  };
+
+  const calculatePositionSize = (currentBalance: number, volatility: number, confidence: number) => {
+    const indicators = calculateTechnicalIndicators(coin);
+    const volatility = indicators.volatility || 5;
+    const tradeAmount = calculatePositionSize(currentBalance, volatility, confidence);
   };
 
   const performRiskManagementCheck = (account: SimulationAccount, settings: BotSettings, marketPrice: MarketPrice) => {
