@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, Area
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wifi, WifiOff, Activity } from 'lucide-react';
-import { cryptoAPI, CryptoHistoricalData } from '@/lib/crypto-api';
+import { cryptoAPI, CryptoHistoricalData, useOptimizedCryptoPrice } from '@/lib/crypto-api';
 
 interface ChartDataPoint {
   time: string;
