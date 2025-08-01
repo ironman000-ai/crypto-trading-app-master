@@ -1,3 +1,5 @@
+import React from 'react';
+
 // 真实的加密货币API集成
 export interface CryptoPrice {
   symbol: string;
