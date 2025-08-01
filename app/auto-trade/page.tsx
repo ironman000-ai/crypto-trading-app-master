@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
+import { RealtimeChart } from '@/components/RealtimeChart';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
