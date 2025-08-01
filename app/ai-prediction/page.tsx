@@ -573,7 +573,7 @@ export default function AIPredictionPage() {
                   <RealtimePrice {...realtimePrice} symbol={selectedCoin} />
                 </CardContent>
               </Card>
-            </Card>
+            )}
           </div>
 
           {/* Main Analysis Panel */}
