@@ -637,6 +637,76 @@ export default function AutoTradePage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 交易日志 */}
+            <Card className="glassmorphism">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Activity className="w-5 h-5 text-blue-400" />
+                  <span>交易日志</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 overflow-y-auto space-y-2">
+                  {tradingLogs.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      暂无交易日志
+                    </div>
+                  ) : (
+                    tradingLogs.map((log, index) => (
+                      <div key={index} className="text-sm p-2 glassmorphism rounded text-slate-300">
+                        {log}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 市场状况 */}
+            <Card className="glassmorphism">
+              <CardHeader>
+                <CardTitle>当前市场状况</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 glassmorphism rounded-lg">
+                    <div className="text-sm text-slate-400 mb-1">交易时段</div>
+                    <div className={`font-medium ${isWithinTradingHours() ? 'text-green-400' : 'text-red-400'}`}>
+                      {isWithinTradingHours() ? '活跃时段' : '休市时段'}
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-3 glassmorphism rounded-lg">
+                    <div className="text-sm text-slate-400 mb-1">市场波动</div>
+                    <div className="font-medium text-yellow-400">
+                      {marketConditions.volatility === 'high' ? '高波动' : 
+                       marketConditions.volatility === 'medium' ? '中等波动' : '低波动'}
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-3 glassmorphism rounded-lg">
+                    <div className="text-sm text-slate-400 mb-1">整体趋势</div>
+                    <div className="font-medium text-blue-400">
+                      {marketConditions.trend === 'bullish' ? '看涨' : 
+                       marketConditions.trend === 'bearish' ? '看跌' : '中性'}
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-3 glassmorphism rounded-lg">
+                    <div className="text-sm text-slate-400 mb-1">成交量</div>
+                    <div className="font-medium text-purple-400">
+                      {marketConditions.volume === 'high' ? '高成交量' : 
+                       marketConditions.volume === 'low' ? '低成交量' : '正常'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 text-xs text-slate-400 text-center">
+                  最后更新: {new Date(marketConditions.lastUpdate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} CST
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
