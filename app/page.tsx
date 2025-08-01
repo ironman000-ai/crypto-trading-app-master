@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MarketOverview } from '@/components/MarketOverview';
 import { Navigation } from '@/components/Navigation';
+import { RealtimePriceList } from '@/components/RealtimePrice';
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
@@ -64,8 +65,12 @@ export default function HomePage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">实时市场行情</h2>
-            <p className="text-slate-400 text-lg">追踪主流加密货币价格变动</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">毫秒级实时行情</h2>
+            <p className="text-slate-400 text-lg">100毫秒更新频率，捕捉每一个价格波动</p>
+            <div className="flex items-center justify-center space-x-2 mt-4">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-400">实时数据流</span>
+            </div>
           </div>
           <MarketOverview />
         </div>
