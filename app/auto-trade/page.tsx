@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Bot, Play, Square, Settings, TrendingUp, TrendingDown, Activity, AlertTriangle, DollarSign, Target, Zap, Shield, Key, Globe, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 interface ExchangeConfig {
   id: string;
@@ -189,7 +190,6 @@ export default function AutoTradePage() {
   const [recentTrades, setRecentTrades] = useState([]);
   const [tradingLogs, setTradingLogs] = useState<string[]>([]);
   const [lastApiCall, setLastApiCall] = useState(0);
-  const [dataUpdateCount, setDataUpdateCount] = useState(0);
   const [lastLogMessage, setLastLogMessage] = useState('');
 
   // 统计数据
@@ -226,26 +226,6 @@ export default function AutoTradePage() {
       breakout: { period: '1h', breakout_threshold: 3 }
     }
   });
-
-  // 格式化价格显示
-  const formatPrice = (price: number) => {
-    if (price >= 1000) {
-      return price.toLocaleString(undefined, { 
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
-    } else if (price >= 1) {
-      return price.toLocaleString(undefined, { 
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 3
-      });
-    } else {
-      return price.toLocaleString(undefined, { 
-        minimumFractionDigits: 4,
-        maximumFractionDigits: 6
-      });
-    }
-  };
 
   // 实时数据更新
   useEffect(() => {
