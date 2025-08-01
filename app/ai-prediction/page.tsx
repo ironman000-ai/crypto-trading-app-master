@@ -81,9 +81,9 @@ export default function AIPredictionPage() {
   ];
 
   const timeframes = [
-    { value: '5m', label: '5分钟', days: 0.1 },
-    { value: '15m', label: '15分钟', days: 0.3 },
-    { value: '30m', label: '30分钟', days: 0.5 },
+    { value: '5m', label: '5分钟', days: 1 },
+    { value: '15m', label: '15分钟', days: 1 },
+    { value: '30m', label: '30分钟', days: 1 },
     { value: '1h', label: '1小时', days: 1 },
     { value: '4h', label: '4小时', days: 3 },
     { value: '1d', label: '1天', days: 7 },
@@ -101,7 +101,19 @@ export default function AIPredictionPage() {
       if (!coinData) return;
 
       const timeframeData = timeframes.find(t => t.value === timeframe);
-      const days = timeframeData?.days || 1;
+      const days = Math.floor(timeframeData?.days || 1);
+      
+      // Set appropriate interval based on days
+      let interval = 'hourly';
+      if (days === 1 && (timeframe === '5m' || timeframe === '15m' || timeframe === '30m')) {
+        interval = 'minutely';
+      } else if (days <= 1) {
+        interval = 'hourly';
+      } else if (days <= 90) {
+        interval = 'hourly';
+      } else {
+        interval = 'daily';
+      }
 
       // Fetch price data using Pro API
       const response = await axios.get('/api/coingecko', {
@@ -109,7 +121,7 @@ export default function AIPredictionPage() {
           path: `coins/${coinData.id}/market_chart`,
           vs_currency: 'usd',
           days: days,
-          interval: timeframe === '5m' || timeframe === '15m' || timeframe === '30m' ? 'minutely' : 'hourly'
+          interval: interval
         }
       });
 
